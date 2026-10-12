@@ -20,26 +20,5 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": [
-    "src/vite-env.d.ts",
-    "src/main.tsx",
-    "src/index.css",
-    "src/test",
-    "src/features/cart/api/cart-adapter.ts",
-    "src/features/cart/api/update-quantity.ts",
-    "src/features/cart/api/remove-item.ts",
-    "src/features/cart/components/AddToCartButton.tsx",
-    "src/features/cart/components/CartItem.tsx",
-    "src/features/cart/components/CartPage.tsx",
-    "src/features/cart/components/CartSummary.tsx",
-    "src/features/cart/components/QuantityControl.tsx",
-    "src/features/cart/__tests__",
-    "src/features/products/api/product-adapter.ts",
-    "src/features/products/components/ProductCard.tsx",
-    "src/features/products/__tests__",
-    "src/features/orders/api/order-adapter.ts",
-    "src/features/orders/api/order-schemas.ts",
-    "src/features/orders/types",
-    "src/features/orders/__tests__"
-  ]
+  "include": ["src"]
 }

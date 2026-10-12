@@ -25,18 +25,8 @@
     <artifactId>gateway-service</artifactId>
 
     <properties>
-        <!--
-            Spring Cloud 2025.x is the release train aligned with Spring Boot 4.1.
-            spring-cloud-dependencies BOM manages spring-cloud-gateway-server-mvc and
-            the WebFlux variant automatically.
-        -->
-        <spring-cloud.version>2025.0.2</spring-cloud.version>
-
-        <!--
-            Fixed vulnerability spring-cloud-gateway-server CVE-2025-41253
-            (Expression Language Injection). Fixed in 4.3.2, 4.2.6.
-        -->
-        <spring-cloud-gateway-server.version>4.3.2</spring-cloud-gateway-server.version>
+        <!-- Spring Cloud 2025.1.3 supports Boot 4.0 and manages Gateway 5.0.3. -->
+        <spring-cloud.version>2025.1.3</spring-cloud.version>
 
         <!--
             Fixed bouncycastle vulnerabilities (CVE-2025-14813, CVE-2026-8763,
@@ -69,10 +59,10 @@
         <!-- ── Core Gateway (Reactor Netty, WebFlux) ───────────────────────── -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-gateway</artifactId>
+            <artifactId>spring-cloud-starter-gateway-server-webflux</artifactId>
             <!--
-                spring-cloud-starter-gateway pulls in:
-                  • spring-cloud-gateway-server (WebFlux variant)
+                spring-cloud-starter-gateway-server-webflux pulls in:
+                  • spring-cloud-gateway-server-webflux
                   • spring-webflux, reactor-netty
                 Do NOT add spring-boot-starter-web here; it conflicts with WebFlux.
             -->

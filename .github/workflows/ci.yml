@@ -62,7 +62,7 @@ jobs:
           done
 
       - name: Run tests
-        run: mvn -B verify -Dspring.profiles.active=test
+        run: ./mvnw -B -ntp -U verify -Dspring.profiles.active=test
 
       - name: Generate test report
         uses: dorny/test-reporter@v2
@@ -95,9 +95,11 @@ jobs:
       # first and only falling back to Maven Central on a miss. GitHub-hosted
       # runners share IP ranges, so those fallbacks hit HTTP 429 rate limiting
       # and abort the scan with a non-zero exit. Resolving dependencies up front
-      # keeps the scan off the network.
+      # keeps the scan off the network. -U also rechecks missing releases:
+      # setup-java's Maven cache can restore a previous failed resolution.
+      # Use the checked-in wrapper to match local verification.
       - name: Resolve Maven dependencies
-        run: mvn -B -ntp dependency:go-offline
+        run: ./mvnw -B -ntp -U dependency:go-offline
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@v0.36.0

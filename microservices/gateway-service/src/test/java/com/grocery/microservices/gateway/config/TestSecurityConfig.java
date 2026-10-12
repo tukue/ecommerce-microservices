@@ -12,7 +12,6 @@ import reactor.core.publisher.Mono;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * Test-only Spring configuration active under the {@code test} profile.

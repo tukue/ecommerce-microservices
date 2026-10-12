@@ -44,6 +44,10 @@ export async function mockApi(page: Page) {
       return;
     }
 
+    if (path === "/api/auth/config") {
+      await json(route, 200, { mode: "demo" });
+      return;
+    }
     if (path === "/api/auth/login" && method === "POST") {
       authenticated = true;
       await json(route, 200, customer);

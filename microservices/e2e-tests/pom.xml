@@ -16,7 +16,7 @@
     <description>End-to-end integration tests across the order and ledger services using Testcontainers.</description>
 
     <properties>
-        <!-- Testcontainers 2.0.5 is managed by the Spring Boot 4.1.1 BOM; this module
+        <!-- Testcontainers 2.0.5 is managed by the Spring Boot BOM; this module
              consumes the BOM-managed version (no explicit version required). -->
         <docker.api.version>1.44</docker.api.version>
     </properties>

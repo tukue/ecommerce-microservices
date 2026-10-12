@@ -6,11 +6,10 @@
     <artifactId>monolith</artifactId>
     <version>1.0-SNAPSHOT</version>
     <properties>
-        <!-- Java 25 (LTS) - matches the Spring Boot 4.1 service modules. -->
+        <!-- Java 25 (LTS) - matches the Spring Boot 4 service modules. -->
         <maven.compiler.release>25</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <!-- JUnit 6.0.3 matches the version managed by Spring Boot 4.1.1's BOM so the
-             monolith and microservices share one test framework line. -->
+        <!-- Keep the monolith on the JUnit 6 test framework line. -->
         <junit.jupiter.version>6.0.3</junit.jupiter.version>
     </properties>
     <dependencies>

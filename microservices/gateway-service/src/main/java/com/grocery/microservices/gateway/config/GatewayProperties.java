@@ -63,13 +63,14 @@ public record GatewayProperties(
     /**
      * JWT validation config.
      *
-     * <p>{@code issuerUri} is the OIDC issuer base URL — the gateway appends
-     * {@code /.well-known/jwks.json} to discover the public signing keys.
-     * This matches the pattern used by every backend service.</p>
+     * <p>{@code issuerUri} identifies the trusted issuer; {@code jwksUri} explicitly
+     * selects its public signing-key endpoint, supporting OIDC providers whose
+     * key endpoint does not follow the demo issuer convention.</p>
      */
     public record Jwt(
             String issuerUri,
-            String audience
+            String audience,
+            String jwksUri
     ) {}
 
     /**

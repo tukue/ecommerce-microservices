@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CartClient, CartClientError } from "./cart-client";
+import { CartClient } from "./cart-client";
 const cart = { id: 1, status: "OPEN", items: [] };
 afterEach(() => vi.unstubAllGlobals());
 describe("CartClient", () => {
@@ -35,8 +35,8 @@ describe("CartClient", () => {
         }),
       ),
     );
-    await expect(
-      new CartClient().createCart(),
-    ).rejects.toMatchObject<CartClientError>({ status: 409 });
+    await expect(new CartClient().createCart()).rejects.toMatchObject({
+      status: 409,
+    });
   });
 });

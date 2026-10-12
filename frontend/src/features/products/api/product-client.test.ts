@@ -1,10 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  fetchProduct,
-  fetchProducts,
-  ProductClientError,
-  searchProducts,
-} from "./product-client";
+import { fetchProduct, fetchProducts, searchProducts } from "./product-client";
 
 const product = {
   id: 1,
@@ -53,7 +48,7 @@ describe("product client", () => {
       "fetch",
       vi.fn().mockResolvedValue(new Response("{}", { status: 404 })),
     );
-    await expect(fetchProduct(9)).rejects.toMatchObject<ProductClientError>({
+    await expect(fetchProduct(9)).rejects.toMatchObject({
       status: 404,
     });
   });

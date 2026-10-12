@@ -6,13 +6,27 @@ on:
     paths:
       - "frontend/**"
       - ".github/workflows/frontend-ci.yml"
-      - '!**/*.md'
+      - "!**/*.md"
   pull_request:
     branches: [main, develop]
     paths:
       - "frontend/**"
       - ".github/workflows/frontend-ci.yml"
-      - '!**/*.md'
+      - "!**/*.md"
+
+  workflow_dispatch:
+    inputs:
+      live_base_url:
+        description: Approved staging HTTPS origin
+        required: true
+        type: string
+      allow_checkout:
+        description: Allow one real order using dedicated seeded test accounts
+        default: false
+        type: boolean
+      product_id:
+        description: Dedicated seeded product ID (required for checkout)
+        type: string
 
 permissions:
   contents: read
@@ -20,6 +34,15 @@ permissions:
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     defaults:
       run:
         working-directory: frontend
@@ -49,6 +72,11 @@ jobs:
       - name: Run unit tests
         run: npm test
 
+      - name: Redis runtime integration
+        run: npm run test:redis
+        env:
+          TEST_REDIS_URL: redis://127.0.0.1:6379
+
       - name: Build frontend
         run: npm run build
 
@@ -64,3 +92,59 @@ jobs:
         with:
           name: playwright-report
           path: frontend/playwright-report/
+
+  live-staging:
+    if: github.event_name == 'workflow_dispatch'
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    environment: staging
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Require the approved staging origin
+        env:
+          REQUESTED_ORIGIN: ${{ inputs.live_base_url }}
+          APPROVED_ORIGIN: ${{ vars.LIVE_BASE_URL }}
+        run: |
+          node --input-type=module <<'JS'
+          const requested = process.env.REQUESTED_ORIGIN;
+          const approved = process.env.APPROVED_ORIGIN;
+          if (!approved || requested !== approved) throw new Error('Live target must equal the protected staging LIVE_BASE_URL variable');
+          const url = new URL(approved);
+          if (url.protocol !== 'https:' || url.origin !== approved) throw new Error('Staging origin must be canonical HTTPS');
+          JS
+      - name: Materialize dedicated sessions without logging secrets
+        env:
+          SESSION_A: ${{ secrets.LIVE_SESSION_A_JSON }}
+          SESSION_B: ${{ secrets.LIVE_SESSION_B_JSON }}
+        run: |
+          node --input-type=module <<'JS'
+          import { writeFileSync } from 'node:fs';
+          for (const identity of ['A', 'B']) {
+            const value = process.env[`SESSION_${identity}`];
+            if (!value) throw new Error(`Missing staging session ${identity}`);
+            const state = JSON.parse(value);
+            if (!Array.isArray(state.cookies) || !state.cookies.length) throw new Error('Storage state must contain a real authenticated session');
+            writeFileSync(`${process.env.RUNNER_TEMP}/live-session-${identity}.json`, JSON.stringify(state), { mode: 0o600 });
+          }
+          JS
+      - name: Real staging release gate (no mocks)
+        run: npm run test:e2e:live
+        env:
+          LIVE_BASE_URL: ${{ inputs.live_base_url }}
+          LIVE_SESSION_A: ${{ runner.temp }}/live-session-A.json
+          LIVE_SESSION_B: ${{ runner.temp }}/live-session-B.json
+          LIVE_ALLOW_CHECKOUT: ${{ inputs.allow_checkout && '1' || '0' }}
+          LIVE_PRODUCT_ID: ${{ inputs.product_id }}
+      - name: Remove session files
+        if: always()
+        run: rm -f "$RUNNER_TEMP/live-session-A.json" "$RUNNER_TEMP/live-session-B.json"

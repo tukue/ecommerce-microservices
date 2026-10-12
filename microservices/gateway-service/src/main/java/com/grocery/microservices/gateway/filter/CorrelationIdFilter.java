@@ -4,7 +4,6 @@ import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
 import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
@@ -64,12 +63,11 @@ public class CorrelationIdFilter implements GlobalFilter, Ordered {
                 .request(mutatedRequest)
                 .build();
 
-        return chain.filter(mutatedExchange)
-                .then(Mono.fromRunnable(() ->
-                        mutatedExchange.getResponse()
-.getHeaders()
-                                 .add(CORRELATION_ID_HEADER, resolvedId)
-                ));
+        mutatedExchange.getResponse().beforeCommit(() -> {
+            mutatedExchange.getResponse().getHeaders().set(CORRELATION_ID_HEADER, resolvedId);
+            return Mono.empty();
+        });
+        return chain.filter(mutatedExchange);
     }
 
     @Override

@@ -5,23 +5,24 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -k \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:server": "tsx --env-file=.env server/bff.ts",
+    "dev:server": "tsx --env-file=.env server/start.ts",
     "dev:client": "vite",
-    "start:server": "tsx server/bff.ts",
+    "start:server": "tsx server/start.ts",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint src/ server/",
     "format": "prettier --check src/ server/ e2e/",
-    "type-check": "tsc --noEmit -p tsconfig.app.json",
+    "type-check": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.server.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:live": "playwright test --config playwright.live.config.ts",
+    "test:redis": "node scripts/run-redis-tests.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
     "cookie-parser": "^1.4.7",
     "express": "^5.2.1",
-    "http-proxy-middleware": "^4.2.0",
     "jose": "^6.2.12",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
@@ -54,6 +55,6 @@
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.30.1",
     "vite": "^6.3.5",
-    "vitest": "^3.1.1"
+    "vitest": "^4.1.11"
   }
 }

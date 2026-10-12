@@ -6,6 +6,7 @@ import org.springframework.cloud.gateway.filter.ratelimit.RedisRateLimiter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import reactor.core.publisher.Mono;
 
 import java.net.InetAddress;
@@ -19,8 +20,9 @@ import java.util.Optional;
  *
  * <h3>Key resolution strategy</h3>
  * <ol>
- *   <li>{@code X-Forwarded-For} — set by a load balancer or reverse proxy.
- *       Leftmost IP is the original client before any intermediary hops.</li>
+ *   <li>Authenticated JWT subject — separate budgets for BFF customers.</li>
+ *   <li>{@code X-Forwarded-For} — nearest untrusted hop, only when the TCP
+ *       peer is a configured trusted proxy.</li>
  *   <li>TCP remote address — used when no proxy header is present (e.g., direct
  *       Docker Compose connections in dev).</li>
  *   <li>{@code "unknown"} — fallback so the limiter still functions rather than
@@ -40,14 +42,9 @@ import java.util.Optional;
  * {@code trusted-proxies} is empty or not configured, XFF is not trusted and
  * the remote address is always used as a safety default for untrusted deployments.
  *
- * <h3>Future enhancement</h3>
- * Swap IP-based keying for the authenticated user's {@code sub} claim when
- * per-user rate limiting is needed:
- * <pre>
- *   return exchange -> exchange.getPrincipal()
- *       .map(Principal::getName)
- *       .defaultIfEmpty("anonymous");
- * </pre>
+ * <p>Authenticated JWT subjects have their own bucket, so Vercel BFF customers
+ * do not share a token budget merely because requests use a common outbound IP.
+ * Anonymous callers fall back to the verified proxy chain or TCP address.</p>
  */
 @Configuration
 @EnableConfigurationProperties(GatewayProperties.class)
@@ -75,24 +72,36 @@ public class RateLimitConfig {
                     .getHeaders()
                     .getFirst("X-Forwarded-For");
 
-            if (xForwardedFor != null && !xForwardedFor.isBlank()) {
-                // XFF is comma-separated; leftmost value is the original client IP
-                String clientIp = xForwardedFor.split(",")[0].trim();
-                // Only trust XFF when it comes from a configured trusted proxy
-                if (trustedProxies != null && !trustedProxies.isEmpty() && trustedProxies.contains(clientIp)) {
-                    return Mono.just(clientIp);
-                }
-                // Untrusted XFF — fall through to remote address
-            }
-
             String remoteAddress = Optional
                     .ofNullable(exchange.getRequest().getRemoteAddress())
                     .map(InetSocketAddress::getAddress)
                     .map(InetAddress::getHostAddress)
                     .orElse("unknown");
 
-            return Mono.just(remoteAddress);
+            // Trust the TCP peer, never a client-supplied address claiming to be a proxy.
+            if (xForwardedFor != null && !xForwardedFor.isBlank()
+                    && trustedProxies != null && trustedProxies.contains(remoteAddress)) {
+                String[] chain = xForwardedFor.split(",");
+                for (int i = chain.length - 1; i >= 0; i--) {
+                    String candidate = chain[i].trim();
+                    if (!candidate.isBlank() && !trustedProxies.contains(candidate)) {
+                        return Mono.just("ip:" + candidate);
+                    }
+                }
+            }
+
+            return Mono.just("ip:" + remoteAddress);
         };
+    }
+
+    @Bean
+    public KeyResolver customerKeyResolver() {
+        KeyResolver ipResolver = ipKeyResolver();
+        return exchange -> exchange.getPrincipal()
+                .ofType(JwtAuthenticationToken.class)
+                .filter(JwtAuthenticationToken::isAuthenticated)
+                .map(principal -> "user:" + principal.getName())
+                .switchIfEmpty(Mono.defer(() -> ipResolver.resolve(exchange)));
     }
 
     /**

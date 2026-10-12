@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchOrders, OrderClientError } from "./order-client";
+import { fetchOrders } from "./order-client";
 const order = {
   id: 1,
   userId: "u",
@@ -37,7 +37,7 @@ describe("fetchOrders", () => {
       "fetch",
       vi.fn().mockResolvedValue(new Response("{}", { status })),
     );
-    await expect(fetchOrders()).rejects.toMatchObject<OrderClientError>({
+    await expect(fetchOrders()).rejects.toMatchObject({
       status,
     });
   });

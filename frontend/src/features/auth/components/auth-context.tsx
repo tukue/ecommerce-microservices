@@ -10,6 +10,7 @@ import {
 import { SESSION_EXPIRED } from "../../../shared/http/session-expired";
 import type { Session } from "../domain/session";
 import {
+  beginLogin as beginProviderLogin,
   getSession,
   login as apiLogin,
   logout as apiLogout,
@@ -18,6 +19,7 @@ import {
 type AuthContextValue = {
   readonly session: Session;
   readonly loading: boolean;
+  readonly beginLogin: (returnTo?: string) => void;
   readonly login: (username: string, password: string) => Promise<void>;
   readonly logout: () => Promise<void>;
 };
@@ -67,6 +69,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const beginLogin = useCallback((returnTo?: string) => {
+    beginProviderLogin(returnTo);
+  }, []);
+
   const logout = useCallback(async () => {
     requestVersion.current++;
     await apiLogout();
@@ -74,7 +80,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ session, loading, login, logout }}>
+    <AuthContext.Provider
+      value={{ session, loading, beginLogin, login, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );

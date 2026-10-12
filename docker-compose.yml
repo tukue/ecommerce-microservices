@@ -45,23 +45,26 @@ services:
       - default
 
   bff:
-    image: node:20-alpine
+    build:
+      context: ./frontend
     container_name: bff
-    working_dir: /app
-    volumes:
-      - ./frontend:/app
     environment:
+      NODE_ENV: development
       REDIS_URL: redis://redis:6379
-      SERVICE_URLS_CART: http://cart-service:8080
-      PORT: 3000
-      COOKIE_SECURE: false
+      SESSION_NAMESPACE: grove:docker
+      GATEWAY_URL: http://gateway-service:8080
+      DEMO_IDENTITY_BASE_URL: http://cart-service:8080
+      JWT_ISSUER_URI: ${JWT_ISSUER_URI:-http://cart-service:8080}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-grocery-api}
+      PUBLIC_ORIGIN: http://localhost:5173
+      BFF_PORT: 3000
     ports:
       - "3000:3000"
     depends_on:
       redis:
         condition: service_healthy
-      cart-service:
-        condition: service_healthy
+      gateway-service:
+        condition: service_started
     networks:
       - default
 

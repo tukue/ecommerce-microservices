@@ -1,0 +1,85 @@
+openapi: 3.0.3
+info:
+  title: BFF Authentication Contract (Production Identity Setup)
+  version: 1.0.0
+  description: >
+    Provider-neutral authentication endpoints exposed by the Node BFF. In OIDC mode the
+    browser is redirected to the external identity provider; the BFF owns the token
+    exchange and the opaque session cookie.
+paths:
+  /api/auth/config:
+    get:
+      summary: Report the active authentication mode
+      responses:
+        "200":
+          description: Active mode
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [mode]
+                properties:
+                  mode:
+                    type: string
+                    enum: [oidc, password]
+  /api/auth/login:
+    get:
+      summary: Begin OIDC sign-in (redirect to provider)
+      parameters:
+        - in: query
+          name: returnTo
+          schema: { type: string }
+          description: Internal path to return to after sign-in
+      responses:
+        "302":
+          description: Redirect to the provider authorization endpoint
+        "503":
+          description: Identity provider discovery unavailable
+    post:
+      summary: Development password login (not available in OIDC mode)
+      responses:
+        "200":
+          description: Session established
+        "404":
+          description: Not available in OIDC mode
+  /api/auth/callback:
+    get:
+      summary: Handle the provider redirect and establish a session
+      parameters:
+        - in: query
+          name: code
+          required: true
+          schema: { type: string }
+        - in: query
+          name: state
+          required: true
+          schema: { type: string }
+      responses:
+        "302":
+          description: Redirect to the safe return destination with a session cookie
+        "400":
+          description: Missing, unknown, or replayed request identity
+        "502":
+          description: Token exchange or verification failed
+  /api/auth/me:
+    get:
+      summary: Return the public session identity
+      responses:
+        "200":
+          description: Signed-in identity
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [userId, email]
+                properties:
+                  userId: { type: string }
+                  email: { type: string }
+        "401":
+          description: Not authenticated
+  /api/auth/logout:
+    post:
+      summary: Delete the server-side session and clear the cookie
+      responses:
+        "204":
+          description: Signed out

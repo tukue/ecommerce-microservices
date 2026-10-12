@@ -11,6 +11,10 @@
 
 ## Recommended Deployment Flow
 
+Define the backend capability, API/data contracts, and operational acceptance
+criteria before implementation using the
+[backend feature-definition template](backend-feature-definition-before-deployment.md).
+
 1. Run unit and integration tests.
 2. Build immutable Docker images tagged by commit SHA.
 3. Generate SBOMs.

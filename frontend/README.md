@@ -3,6 +3,9 @@
 React 19 + TypeScript + Vite storefront with an Express BFF. The customer flow
 covers public catalogue/search, product details, sign-in, persistent cart,
 retry-safe checkout, persisted confirmation, order history, and eventual receipts.
+Production runs the shared BFF in Vercel Node functions and forwards requests
+through Spring Gateway to private services. See
+[the deployment guide](../docs/frontend-vercel-deployment.md).
 
 Use [the design system](docs/design-system.md) for visual and interaction
 consistency and [the architecture guide](docs/architecture.md) for code boundaries.
@@ -88,8 +91,13 @@ For a preinstalled Chromium, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to its
 executable path instead of downloading another browser. Playwright starts Vite
 and uses stateful BFF API fixtures. These tests verify the browser customer
 journey; they do not establish that a deployed backend or Kafka is healthy.
-Run the backend integration suite and a real checkout-to-receipt request before
-claiming deployment readiness.
+Run the backend integration suite and the separate `npm run test:e2e:live`
+staging gate before claiming deployment readiness. The live suite starts no
+mock server: set HTTPS `LIVE_BASE_URL` and securely supplied Playwright
+`LIVE_SESSION_A` / `LIVE_SESSION_B` storage-state paths for two dedicated
+identities. Writes require `LIVE_ALLOW_CHECKOUT=1`, seeded `LIVE_PRODUCT_ID`,
+and an empty existing cart; only run them on disposable staging accounts.
+See the deployment guide for CI secret setup and outstanding release gates.
 
 The current cart/order contracts do not contain currency or checkout payment,
 address, or delivery data. Cart amounts are previews from server line prices;

@@ -8,7 +8,7 @@ running production deployment.
 
 The customer storefront uses React 19, TypeScript, Vite, and React Router. An
 Express backend for frontend (BFF) handles browser API requests. The Maven reactor
-uses Spring Boot 4.1.1 and Java 25 and contains four services and an end-to-end test
+uses Spring Boot 4.0.8 and Java 25 and contains four services and an end-to-end test
 module.
 
 | Component | Responsibility | Source |

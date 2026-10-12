@@ -11,12 +11,15 @@ describe("AddToCartButton", () => {
 
   it("prevents duplicate submissions and shows success feedback", async () => {
     let resolve:
-      ((value: { message: string; status: "success" }) => void) | undefined;
+      | ((value: { ok: true; message: string; status: "success" }) => void)
+      | undefined;
     const addItem = vi.fn(
       () =>
-        new Promise<{ message: string; status: "success" }>((done) => {
-          resolve = done;
-        }),
+        new Promise<{ ok: true; message: string; status: "success" }>(
+          (done) => {
+            resolve = done;
+          },
+        ),
     );
     render(<AddToCartButton addItem={addItem} available productId={1} />);
 
@@ -24,7 +27,7 @@ describe("AddToCartButton", () => {
     fireEvent.click(screen.getByRole("button", { name: "Adding..." }));
     expect(addItem).toHaveBeenCalledOnce();
 
-    resolve?.({ message: "Added to cart.", status: "success" });
+    resolve?.({ ok: true, message: "Added to cart.", status: "success" });
     expect(await screen.findByRole("status")).toHaveTextContent(
       "Added to cart.",
     );
@@ -33,7 +36,11 @@ describe("AddToCartButton", () => {
   it("shows failure feedback", async () => {
     render(
       <AddToCartButton
-        addItem={async () => ({ message: "Try again.", status: "error" })}
+        addItem={async () => ({
+          ok: false,
+          message: "Try again.",
+          status: "error",
+        })}
         available
         productId={1}
       />,

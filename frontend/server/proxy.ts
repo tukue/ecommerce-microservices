@@ -101,6 +101,7 @@ export function resolveService(
   method: string,
   path: string,
   serviceUrls: ServiceUrls,
+  gatewayUrl?: string,
 ): ResolvedRoute | null {
   const pathname = path.split("?", 1)[0];
   const rule = rules.find(
@@ -113,6 +114,7 @@ export function resolveService(
     protected: rule.protected,
     service: rule.service,
     target: serviceUrls[rule.service],
-    upstreamPath: rule.transform ? rule.transform(pathname) : pathname,
+    upstreamPath:
+      !gatewayUrl && rule.transform ? rule.transform(pathname) : pathname,
   };
 }

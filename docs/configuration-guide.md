@@ -37,6 +37,39 @@ All four microservices are OAuth2 resource servers. In production/docker they fe
 
 Inter-service calls (order → cart) forward the caller's bearer token so the downstream service enforces the same ownership rules; no shared-secret internal headers are used.
 
+### Production identity is enforced at startup
+
+In the `prod` profile every service runs `ProductionIdentityGuard`, which fails startup
+(without printing configured values) when the development identity mechanism is enabled
+(`security.jwt.demo-enabled=true`), the issuer is missing or not HTTPS, or the audience is
+blank. The gateway has the same guard for `gateway.jwt.*` and now ships an
+`application-prod.properties` requiring `JWT_ISSUER_URI`, `JWT_AUDIENCE`, upstream service
+URLs, explicit CORS origins, and a TLS Redis connection.
+
+## Storefront (BFF) production identity
+
+The Node BFF owns the browser session and, in production, performs an OIDC authorization
+code flow with PKCE against the external provider. Provider selection (E01) is external;
+the BFF is vendor-neutral and discovers endpoints from the issuer.
+
+| Variable | Required (prod) | Notes |
+| --- | --- | --- |
+| `AUTH_MODE` | yes (`oidc`) | `oidc` or `password` (development only) |
+| `OIDC_ISSUER_URI` | yes | HTTPS OIDC issuer; discovery is resolved from it |
+| `OIDC_CLIENT_ID` | yes | Registered client |
+| `OIDC_CLIENT_SECRET` | provider-dependent | Confidential clients only; never logged |
+| `OIDC_REDIRECT_URI` | yes | Must match provider registration, e.g. `https://<host>/api/auth/callback` |
+| `OIDC_SCOPES` | no | Defaults to `openid profile email` |
+| `JWT_AUDIENCE` | yes | Shared API audience, e.g. `grocery-api` |
+| `JWT_JWKS_URI` | no | Overrides discovery `jwks_uri` for access-token checks |
+| `PUBLIC_ORIGIN` | no | Public storefront origin for safe redirects |
+| `REDIS_URL` | yes | Session and one-time authorization-request store |
+
+`GET /api/auth/login` redirects to the provider; `GET /api/auth/callback` completes the
+exchange and sets an opaque HttpOnly session cookie. The password `POST /api/auth/login`
+route is unavailable while `AUTH_MODE=oidc`. Unsafe production identity configuration
+fails at startup before the BFF serves traffic.
+
 ## Demo identity (dev only)
 
 With `security.jwt.demo-enabled=true` and the `dev` profile active, each service starts an ephemeral RSA-2048 keypair and serves:

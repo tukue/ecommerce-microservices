@@ -5,6 +5,7 @@ import { createBff } from "../bff";
 import { MemorySessionStore } from "../session-store";
 
 const config = {
+  auth: { mode: "password" as const, publicOrigin: "http://localhost:3000" },
   cookieSecure: false,
   jwt: {
     audience: "grocery-api",
