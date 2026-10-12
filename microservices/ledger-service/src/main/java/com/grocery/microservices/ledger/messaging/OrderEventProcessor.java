@@ -37,6 +37,7 @@ public class OrderEventProcessor implements LedgerProjectionUpdater {
         ledger.setOrderId(event.orderId());
         ledger.setUserId(event.userId());
         ledger.setTotalAmount(BigDecimal.valueOf(event.total()));
+        ledger.setCurrency(event.currency() == null ? "SEK" : event.currency());
         ledger.setItemCount(0);
         ledger.setCreatedAt(LocalDateTime.now());
         ledger.setDetails("Order created");
@@ -51,7 +52,8 @@ public class OrderEventProcessor implements LedgerProjectionUpdater {
     private void validate(OrderCreatedEvent event) {
         if (event == null || event.eventId() == null || event.orderId() == null
                 || event.orderId() <= 0 || event.userId() == null || event.userId().isBlank()
-                || event.cartId() == null || event.cartId() <= 0 || event.total() < 0) {
+                || event.cartId() == null || event.cartId() <= 0 || event.total() < 0
+                || (event.currency() != null && !event.currency().matches("[A-Z]{3}"))) {
             throw new IllegalArgumentException("Invalid order-created event");
         }
     }

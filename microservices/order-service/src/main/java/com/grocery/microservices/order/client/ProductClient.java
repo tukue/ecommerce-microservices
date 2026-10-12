@@ -6,4 +6,6 @@ public interface ProductClient {
     StockReservationSnapshot reserve(Long productId, int quantity, String reservationKey, String authorizationHeader);
 
     void release(String reservationKey, String authorizationHeader);
+
+    void releaseAfterPaymentExpiry(String reservationKey);
 }

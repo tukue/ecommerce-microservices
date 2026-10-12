@@ -83,6 +83,8 @@ public class SecurityConfig {
                         ).permitAll()
                         // Public product catalog: browse without a token
                         .pathMatchers(HttpMethod.GET, "/api/catalog/**").permitAll()
+                        // Stripe authenticates webhook requests with its signature header.
+                        .pathMatchers(HttpMethod.POST, "/api/webhooks/stripe").permitAll()
                         // Everything else requires a valid, unexpired JWT with the
                         // correct issuer and audience
                         .anyExchange().authenticated()

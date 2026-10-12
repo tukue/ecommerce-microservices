@@ -6,7 +6,7 @@ const order = {
   id: 42,
   cartId: 1,
   userId: "customer",
-  status: "PENDING",
+  status: "COMPLETED",
   orderDate: "2026-10-06T10:00:00",
   total: 2,
   orderLines: [

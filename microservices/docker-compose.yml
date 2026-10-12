@@ -154,6 +154,7 @@ services:
       JWT_ISSUER_URI: ${JWT_ISSUER_URI:-http://cart-service:8080}
       JWT_AUDIENCE: ${JWT_AUDIENCE:-grocery-api}
       DEMO_IDENTITY_ENABLED: ${CART_DEMO_IDENTITY_ENABLED:-true}
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:?Set INTERNAL_SERVICE_KEY in microservices/.env}
     ports:
       - "8081:8080"
     security_opt:
@@ -183,6 +184,10 @@ services:
       JWT_ISSUER_URI: ${JWT_ISSUER_URI:-http://cart-service:8080}
       JWT_AUDIENCE: ${JWT_AUDIENCE:-grocery-api}
       DEMO_IDENTITY_ENABLED: "false"
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:?Set INTERNAL_SERVICE_KEY in microservices/.env}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_FRONTEND_BASE_URL: ${STRIPE_FRONTEND_BASE_URL:-http://localhost:5173}
     ports:
       - "8082:8080"
     security_opt:
@@ -214,6 +219,7 @@ services:
       JWT_ISSUER_URI: ${JWT_ISSUER_URI:-http://cart-service:8080}
       JWT_AUDIENCE: ${JWT_AUDIENCE:-grocery-api}
       DEMO_IDENTITY_ENABLED: "false"
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:?Set INTERNAL_SERVICE_KEY in microservices/.env}
     ports:
       - "8083:8080"
     security_opt:

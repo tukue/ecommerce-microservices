@@ -1,14 +1,22 @@
-import { useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { useCart } from "../../cart";
-import { submitCheckout } from "../api/checkout-client";
+import {
+  createPaymentSession,
+  submitCheckout,
+} from "../api/checkout-client";
 import { toOrder } from "../api/order.mappers";
 import type { CartSummary, Order } from "../domain/order";
 import { CheckoutForm } from "./checkout-form";
 
+type CheckoutPageProps = Readonly<{
+  redirectToPayment?: (url: string) => void;
+}>;
+
 function toSummary(
   cartId: number,
+  currency: string | null,
   items: ReadonlyArray<{
     productId: number;
     productName: string;
@@ -26,27 +34,66 @@ function toSummary(
   const total = Number(
     lines.reduce((sum, line) => sum + line.lineTotal, 0).toFixed(2),
   );
-  return { id: cartId, items: lines, total };
+  return { currency, id: cartId, items: lines, total };
 }
 
-export function CheckoutPage() {
+export function CheckoutPage({
+  redirectToPayment = (url) => window.location.assign(url),
+}: CheckoutPageProps = {}) {
   const { cart, clear, loading, error } = useCart();
-  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [paymentRetryError, setPaymentRetryError] = useState<string>();
+  const [retryingPayment, setRetryingPayment] = useState(false);
+  const cancelledOrderId = Number(searchParams.get("orderId"));
+  const paymentCancelled =
+    searchParams.get("payment") === "cancelled" &&
+    Number.isSafeInteger(cancelledOrderId) &&
+    cancelledOrderId > 0;
 
   const summary = useMemo(
-    () => (cart ? toSummary(cart.id, cart.items) : null),
+    () => (cart ? toSummary(cart.id, cart.currency, cart.items) : null),
     [cart],
   );
 
   async function handleConfirmed(order: Order): Promise<void> {
+    if (!order.paymentUrl) {
+      throw new Error("Payment session URL was not returned.");
+    }
     clear();
-    navigate(`/confirmation/${order.id}`);
+    redirectToPayment(order.paymentUrl);
+  }
+
+  async function retryPayment(): Promise<void> {
+    setRetryingPayment(true);
+    setPaymentRetryError(undefined);
+    try {
+      const payment = await createPaymentSession(cancelledOrderId);
+      redirectToPayment(payment.checkoutUrl);
+    } catch {
+      setPaymentRetryError("Unable to restart payment. Please try again.");
+    } finally {
+      setRetryingPayment(false);
+    }
   }
 
   if (loading) {
     return (
       <main>
         <div role="status">Loading checkout...</div>
+      </main>
+    );
+  }
+
+  if (paymentCancelled) {
+    return (
+      <main>
+        <h1>Payment not completed</h1>
+        <p>Your order is still reserved. You can return to secure checkout.</p>
+        {paymentRetryError && <p role="alert">{paymentRetryError}</p>}
+        <button type="button" disabled={retryingPayment} onClick={() => void retryPayment()}>
+          {retryingPayment ? "Starting payment..." : "Pay for order"}
+        </button>
+        <Link to="/products">Continue shopping</Link>
       </main>
     );
   }
@@ -80,8 +127,12 @@ export function CheckoutPage() {
       </div>
       <CheckoutForm
         cart={summary}
-        submitOrder={async (input) => toOrder(await submitCheckout(input))}
-        onConfirmed={(order) => void handleConfirmed(order)}
+        submitOrder={async (input) => {
+          const order = toOrder(await submitCheckout(input));
+          const payment = await createPaymentSession(order.id);
+          return { ...order, paymentUrl: payment.checkoutUrl };
+        }}
+        onConfirmed={handleConfirmed}
       />
       <div style={{ marginTop: "16px" }}>
         <Link to="/cart">Back to cart</Link>

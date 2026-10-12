@@ -62,16 +62,12 @@ public class OrderService {
         }
         order.setStatus(OrderStatus.PENDING);
         order.setOrderDate(LocalDateTime.now());
+        order.setCorrelationId(correlationId == null || correlationId.isBlank()
+                ? UUID.randomUUID().toString()
+                : correlationId);
         Order savedOrder = repo.save(order);
-        UUID eventId = UUID.randomUUID();
-        String resolvedCorrelationId = correlationId == null || correlationId.isBlank()
-                ? eventId.toString()
-                : correlationId;
-        orderEventStore.enqueue(new OrderCreatedEvent(eventId, Instant.now(),
-                savedOrder.getId(), savedOrder.getUserId(), savedOrder.getCartId(), savedOrder.getTotal(),
-                resolvedCorrelationId));
         log.info("EVENT=ORDER_CREATED ORDER_ID={} USER_ID={} TOTAL={} CORRELATION_ID={}",
-            savedOrder.getId(), savedOrder.getUserId(), savedOrder.getTotal(), resolvedCorrelationId);
+            savedOrder.getId(), savedOrder.getUserId(), savedOrder.getTotal(), savedOrder.getCorrelationId());
         return savedOrder;
     }
 
@@ -92,6 +88,9 @@ public class OrderService {
         }
         if (cartSnapshot.items() == null || cartSnapshot.items().isEmpty()) {
             throw new EmptyCartException(cartId);
+        }
+        if (cartSnapshot.currency() == null || !cartSnapshot.currency().matches("[A-Z]{3}")) {
+            throw new IllegalStateException("Cart currency is invalid");
         }
 
         // Reserve stock for every cart line. Reservations are idempotent by key
@@ -122,6 +121,7 @@ public class OrderService {
             order.setIdempotencyKey(resolvedKey);
             order.setOrderLines(orderLines);
             order.setTotal(orderLines.stream().mapToDouble(OrderLine::getLineTotal).sum());
+            order.setCurrency(cartSnapshot.currency());
             // Atomically claim the cart BEFORE persisting the order. The cart
             // service guards this with an optimistic lock, so a concurrent
             // checkout that already claimed the cart fails here and never
@@ -139,7 +139,7 @@ public class OrderService {
                 return findOrderFor(customer, resolvedKey)
                         .orElseThrow(() -> ex);
             } catch (RuntimeException ex) {
-                // Order/event write failed after the cart was claimed; reopen the
+                // Order write failed after the cart was claimed; reopen the
                 // cart so the customer can retry checkout instead of being stranded.
                 try {
                     cartClient.markOpen(cartId, authorizationHeader);
@@ -150,7 +150,7 @@ public class OrderService {
                 throw ex;
             }
         } catch (RuntimeException ex) {
-            // The order/event write failed; compensate so stock is not leaked.
+            // The order write failed; compensate so stock is not leaked.
             releaseReservations(reservations, authorizationHeader);
             throw ex;
         }
@@ -167,21 +167,50 @@ public class OrderService {
 
     @Transactional
     public Order updateOrderStatus(Long id, OrderStatus newStatus, AuthenticatedCustomer customer) {
-        Order order = getOrder(id, customer);
-        OrderStatus oldStatus = order.getStatus();
+        getOrder(id, customer);
+        throw new InvalidOrderStateException("Order status changes are managed by the payment lifecycle");
+    }
 
-        if (oldStatus != OrderStatus.PENDING) {
-            throw new InvalidOrderStateException("Cannot change status of a " + oldStatus + " order");
+    @Transactional
+    public Order completePayment(Long orderId) {
+        Order order = repo.findByIdForUpdate(orderId)
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
+        if (order.getStatus() == OrderStatus.COMPLETED) {
+            return order;
         }
-        if (newStatus != OrderStatus.COMPLETED && newStatus != OrderStatus.CANCELLED) {
-            throw new InvalidOrderStateException("A PENDING order can only be COMPLETED or CANCELLED");
+        if (order.getStatus() != OrderStatus.PENDING) {
+            throw new InvalidOrderStateException("Cannot complete payment for a " + order.getStatus() + " order");
         }
+        order.setStatus(OrderStatus.COMPLETED);
+        Order paidOrder = repo.save(order);
+        UUID eventId = UUID.randomUUID();
+        orderEventStore.enqueue(new OrderCreatedEvent(eventId, Instant.now(), paidOrder.getId(),
+                paidOrder.getUserId(), paidOrder.getCartId(), paidOrder.getTotal(),
+                paidOrder.getCorrelationId(), paidOrder.getCurrency()));
+        log.info("EVENT=ORDER_PAYMENT_COMPLETED ORDER_ID={} CURRENCY={}",
+                paidOrder.getId(), paidOrder.getCurrency());
+        return paidOrder;
+    }
 
-        order.setStatus(newStatus);
-        Order updatedOrder = repo.save(order);
-        log.info("EVENT=ORDER_STATUS_UPDATED ORDER_ID={} OLD_STATUS={} NEW_STATUS={}",
-            updatedOrder.getId(), oldStatus, newStatus);
-        return updatedOrder;
+    @Transactional
+    public Order expirePayment(Long orderId) {
+        Order order = repo.findByIdForUpdate(orderId)
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            return order;
+        }
+        if (order.getStatus() != OrderStatus.PENDING) {
+            throw new InvalidOrderStateException("Cannot expire payment for a " + order.getStatus() + " order");
+        }
+        for (OrderLine line : order.getOrderLines()) {
+            productClient.releaseAfterPaymentExpiry(
+                    reservationKeyFor(order.getIdempotencyKey(), order.getUserId(), line.getProductId()));
+        }
+        cartClient.markOpen(order.getCartId(), null);
+        order.setStatus(OrderStatus.CANCELLED);
+        Order cancelledOrder = repo.save(order);
+        log.info("EVENT=ORDER_PAYMENT_EXPIRED ORDER_ID={}", cancelledOrder.getId());
+        return cancelledOrder;
     }
 
     private OrderLine toOrderLine(CartItemSnapshot item) {

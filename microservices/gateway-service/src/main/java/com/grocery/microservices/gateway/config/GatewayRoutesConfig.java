@@ -23,10 +23,10 @@ import org.springframework.context.annotation.Configuration;
  *  POST /api/auth/login                 BFF                   no      —
  *  POST /api/auth/logout                BFF                   no      —
  *  GET  /api/auth/me                    BFF                   yes     —
- *  **   /api/customer/cart/**           cart-service          yes     2
- *  POST /api/customer/checkout          order-service         yes     2
- *  **   /api/customer/orders/**         order-service         yes     2
- *  **   /api/customer/summaries/**      summary-service       yes     2
+ *  **   /api/customer/cart/**           cart-service          yes     —
+ *  POST /api/customer/checkout          order-service         yes     —
+ *  **   /api/customer/orders/**        order-service         yes     —
+ *  **   /api/customer/ledger/**        ledger-service        yes     —
  * </pre>
  *
  * <h3>Cross-cutting filters (applied globally, not per-route)</h3>
@@ -37,8 +37,8 @@ import org.springframework.context.annotation.Configuration;
  *
  * <h3>Per-route filters</h3>
  * <ul>
- *   <li>{@code StripPrefix(2)} — removes the public path prefix before
- *       forwarding to the upstream service.</li>
+ *   <li>{@code StripPrefix(2)} — used only where upstream controller paths
+ *       intentionally omit the public prefix.</li>
  *   <li>{@code X-Gateway-Version: 1.0} — static marker in upstream logs.</li>
  *   <li>{@code RequestRateLimiter} — Redis token-bucket on all customer routes.</li>
  * </ul>
@@ -107,12 +107,18 @@ public class GatewayRoutesConfig {
                         .uri(svc.bffUrl())
                 )
 
+                .route("stripe-webhook", r -> r
+                        .path("/api/webhooks/stripe")
+                        .and().method("POST")
+                        .filters(f -> f.stripPrefix(1))
+                        .uri(svc.orderUrl())
+                )
+
                 // ── 5. Cart — protected, rate limited ─────────────────────────────
-                // StripPrefix(2): /api/customer/cart → /cart
+                // Preserve the customer API prefix expected by CartController.
                 .route("customer-cart", r -> r
                         .path("/api/customer/cart", "/api/customer/cart/**")
                         .filters(f -> f
-                                .stripPrefix(2)
                                 .addRequestHeader("X-Gateway-Version", "1.0")
                                 .requestRateLimiter(c -> c
                                         .setRateLimiter(customerRateLimiter)
@@ -125,12 +131,11 @@ public class GatewayRoutesConfig {
                 )
 
                 // ── 6. Checkout — protected, rate limited ─────────────────────────
-                // StripPrefix(2): /api/customer/checkout → /checkout
+                // Preserve the customer API prefix expected by OrderController.
                 .route("customer-checkout", r -> r
                         .path("/api/customer/checkout")
                         .and().method("POST")
                         .filters(f -> f
-                                .stripPrefix(2)
                                 .addRequestHeader("X-Gateway-Version", "1.0")
                                 .requestRateLimiter(c -> c
                                         .setRateLimiter(customerRateLimiter)
@@ -146,7 +151,6 @@ public class GatewayRoutesConfig {
                 .route("customer-orders", r -> r
                         .path("/api/customer/orders", "/api/customer/orders/**")
                         .filters(f -> f
-                                .stripPrefix(2)
                                 .addRequestHeader("X-Gateway-Version", "1.0")
                                 .requestRateLimiter(c -> c
                                         .setRateLimiter(customerRateLimiter)
@@ -158,18 +162,17 @@ public class GatewayRoutesConfig {
                         .uri(svc.orderUrl())
                 )
 
-                // ── 8. Summaries / receipts — protected, rate limited ─────────────
-                .route("customer-summaries", r -> r
-                        .path("/api/customer/summaries", "/api/customer/summaries/**")
+                // ── 8. Ledger / receipts — protected, rate limited ────────────────
+                .route("customer-ledger", r -> r
+                        .path("/api/customer/ledger", "/api/customer/ledger/**")
                         .filters(f -> f
-                                .stripPrefix(2)
                                 .addRequestHeader("X-Gateway-Version", "1.0")
                                 .requestRateLimiter(c -> c
                                         .setRateLimiter(customerRateLimiter)
                                         .setKeyResolver(ipKeyResolver)
                                 )
-                                // .circuitBreaker(c -> c.setName("summary-cb")
-                                //     .setFallbackUri("forward:/fallback/summary"))
+                                // .circuitBreaker(c -> c.setName("ledger-cb")
+                                //     .setFallbackUri("forward:/fallback/ledger"))
                         )
                         .uri(svc.summaryUrl())
                 )

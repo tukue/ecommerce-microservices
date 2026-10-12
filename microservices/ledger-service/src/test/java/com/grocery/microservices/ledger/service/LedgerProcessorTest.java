@@ -50,7 +50,7 @@ class LedgerProcessorTest {
 
         assertTrue(receipt.contains("Order ID: 123"));
         assertTrue(receipt.contains("Items: 3"));
-        assertTrue(receipt.contains("Total: $45.67"));
+        assertTrue(receipt.contains("Total: 45.67 SEK"));
         assertTrue(receipt.contains("Details: Apple, Banana, Carrot"));
     }
 }

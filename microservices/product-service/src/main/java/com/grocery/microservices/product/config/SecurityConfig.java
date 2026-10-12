@@ -108,6 +108,7 @@ public class SecurityConfig {
                     "/actuator/info"
                 ).permitAll()
                 .requestMatchers(HttpMethod.GET, "/products/**").permitAll()
+                .requestMatchers("/products/reservations/internal/**").permitAll()
                 .requestMatchers(demoAuthPaths())
                 .permitAll()
                 .anyRequest().authenticated()

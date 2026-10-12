@@ -14,6 +14,7 @@ function toCartItem(item: CartResponse["items"][number]): CartItem {
 export function toCart(response: unknown): Cart {
   const cart = cartResponseSchema.parse(response);
   return {
+    currency: cart.currency ?? null,
     id: cart.id,
     items: cart.items.map(toCartItem),
     status: cart.status,

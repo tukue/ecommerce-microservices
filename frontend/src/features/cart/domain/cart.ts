@@ -9,6 +9,7 @@ export type CartItem = Readonly<{
 }>;
 
 export type Cart = Readonly<{
+  currency: string | null;
   id: number;
   items: readonly CartItem[];
   status: CartStatus;

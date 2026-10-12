@@ -34,7 +34,7 @@ describe("CheckoutForm", () => {
       <CheckoutForm cart={cart} onConfirmed={vi.fn()} submitOrder={vi.fn()} />,
     );
     expect(screen.getByText("Checkout")).toBeInTheDocument();
-    expect(screen.getByText("Cart total: 29.90")).toBeInTheDocument();
+    expect(screen.getByText("Cart total: 29.90 SEK")).toBeInTheDocument();
     expect(screen.getByLabelText("Cart summary")).toHaveTextContent(
       "Apples x 1",
     );
@@ -50,7 +50,9 @@ describe("CheckoutForm", () => {
         submitOrder={vi.fn().mockResolvedValue(order)}
       />,
     );
-    await user.click(screen.getByRole("button", { name: "Submit order" }));
+    await user.click(
+      screen.getByRole("button", { name: "Continue to payment" }),
+    );
     expect(onConfirmed).toHaveBeenCalledWith(order);
   });
 
@@ -65,7 +67,9 @@ describe("CheckoutForm", () => {
           .mockRejectedValue(createApplicationError("timeout"))}
       />,
     );
-    await user.click(screen.getByRole("button", { name: "Submit order" }));
+    await user.click(
+      screen.getByRole("button", { name: "Continue to payment" }),
+    );
     expect(screen.getByRole("alert")).toHaveTextContent(
       "The request took too long",
     );
@@ -88,7 +92,9 @@ describe("CheckoutForm", () => {
       />,
     );
 
-    const submitButton = screen.getByRole("button", { name: "Submit order" });
+    const submitButton = screen.getByRole("button", {
+      name: "Continue to payment",
+    });
     await user.click(submitButton);
     expect(submitButton).toBeDisabled();
     await user.click(submitButton);

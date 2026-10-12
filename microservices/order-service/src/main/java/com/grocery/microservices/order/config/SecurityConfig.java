@@ -104,7 +104,8 @@ public class SecurityConfig {
                     "/swagger-resources/**",
                     "/webjars/**",
                     "/actuator/health",
-                    "/actuator/info"
+                    "/actuator/info",
+                    "/webhooks/stripe"
                 ).permitAll()
                 .requestMatchers(demoAuthPaths())
                 .permitAll()

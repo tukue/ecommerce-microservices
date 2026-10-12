@@ -7,6 +7,7 @@ import com.grocery.microservices.cart.exception.ProductCatalogUnavailableExcepti
 import com.grocery.microservices.cart.exception.ProductNotFoundException;
 import com.grocery.microservices.cart.exception.ProductUnavailableException;
 import com.grocery.microservices.cart.exception.InsufficientProductStockException;
+import com.grocery.microservices.cart.exception.MixedCurrencyCartException;
 import com.grocery.microservices.cart.exception.CartAlreadyCheckedOutException;
 import com.grocery.microservices.cart.model.Cart;
 import com.grocery.microservices.cart.model.CartItem;
@@ -107,6 +108,41 @@ class CartServiceTest {
         assertEquals("Apple", updatedCartDTO.getItems().get(0).getProductName());
         assertEquals(1.5, updatedCartDTO.getItems().get(0).getPrice());
         assertEquals(2, updatedCartDTO.getItems().get(0).getQuantity());
+        assertEquals("SEK", updatedCartDTO.getCurrency());
+    }
+
+    @Test
+    void testAddItemRejectsDifferentCartCurrency() {
+        CartItem existingItem = new CartItem();
+        existingItem.setProductId(11L);
+        existingItem.setQuantity(1);
+        testCart.getItems().add(existingItem);
+        testCart.setCurrency("SEK");
+        when(cartRepository.findByIdAndUserId(1L, "customer-1")).thenReturn(Optional.of(testCart));
+        when(productCatalogClient.getProduct(10L))
+                .thenReturn(new CatalogProduct(10L, "Apple", 1.5, "USD", true, 10));
+
+        assertThrows(MixedCurrencyCartException.class, () ->
+                cartService.addItem(1L, 10L, 1, CUSTOMER_1));
+        verify(cartRepository, never()).save(Mockito.any(Cart.class));
+    }
+
+    @Test
+    void testAddItemMergesExistingProductLine() {
+        CartItem existingItem = new CartItem();
+        existingItem.setProductId(10L);
+        existingItem.setQuantity(2);
+        testCart.getItems().add(existingItem);
+        testCart.setCurrency("SEK");
+        when(cartRepository.findByIdAndUserId(1L, "customer-1")).thenReturn(Optional.of(testCart));
+        when(cartRepository.save(Mockito.any(Cart.class))).thenReturn(testCart);
+        when(productCatalogClient.getProduct(10L))
+                .thenReturn(new CatalogProduct(10L, "Apple", 1.5, true, 10));
+
+        var updatedCartDTO = cartService.addItem(1L, 10L, 3, CUSTOMER_1);
+
+        assertEquals(1, updatedCartDTO.getItems().size());
+        assertEquals(5, updatedCartDTO.getItems().getFirst().getQuantity());
     }
 
     @Test
@@ -146,6 +182,7 @@ class CartServiceTest {
         existingItem.setProductId(10L);
         existingItem.setQuantity(1);
         testCart.getItems().add(existingItem);
+        testCart.setCurrency("SEK");
         when(productCatalogClient.getProduct(10L)).thenReturn(new CatalogProduct(10L, "Apple", 1.5, true, 2));
 
         assertThrows(InsufficientProductStockException.class,
@@ -217,25 +254,15 @@ class CartServiceTest {
     }
 
     @Test
-    void revertsCheckedOutCartBackToOpen() {
+    void reopensCheckedOutCartInternally() {
         testCart.setStatus(CartStatus.CHECKED_OUT);
-        when(cartRepository.findByIdAndUserId(1L, "customer-1")).thenReturn(Optional.of(testCart));
+        when(cartRepository.findById(1L)).thenReturn(Optional.of(testCart));
         when(cartRepository.save(Mockito.any(Cart.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        var reopenedCart = cartService.markOpen(1L, CUSTOMER_1);
+        cartService.reopenCartInternally(1L);
 
-        assertEquals("OPEN", reopenedCart.getStatus());
         assertEquals(CartStatus.OPEN, testCart.getStatus());
         verify(cartRepository).save(testCart);
-    }
-
-    @Test
-    void markOpenIsScopedToOwnedCart() {
-        when(cartRepository.findByIdAndUserId(1L, "customer-2")).thenReturn(Optional.empty());
-
-        assertThrows(CartNotFoundException.class, () -> cartService.markOpen(1L, new AuthenticatedCustomer("customer-2")));
-
-        verify(cartRepository, never()).save(Mockito.any(Cart.class));
     }
 
     @Test

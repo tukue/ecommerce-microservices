@@ -13,7 +13,9 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -45,7 +47,9 @@ class OrderEventProcessorTest {
 
         processor.process(event);
 
-        verify(ledgerRepository).save(any(Ledger.class));
+        var ledgerCaptor = forClass(Ledger.class);
+        verify(ledgerRepository).save(ledgerCaptor.capture());
+        assertEquals("SEK", ledgerCaptor.getValue().getCurrency());
         verify(processedEventRepository).save(any(ProcessedOrderEvent.class));
     }
 

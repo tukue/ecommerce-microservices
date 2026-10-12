@@ -19,6 +19,8 @@ public class Ledger {
     private Long orderId;
     @Column(name = "total_amount")
     private BigDecimal totalAmount;
+    @Column(nullable = false, length = 3)
+    private String currency = "SEK";
     @Column(name = "item_count")
     private Integer itemCount;
     @Column(name = "created_at")
@@ -36,6 +38,9 @@ public class Ledger {
 
     public BigDecimal getTotalAmount() { return totalAmount; }
     public void setTotalAmount(BigDecimal totalAmount) { this.totalAmount = totalAmount; }
+
+    public String getCurrency() { return currency; }
+    public void setCurrency(String currency) { this.currency = currency; }
 
     public Integer getItemCount() { return itemCount; }
     public void setItemCount(Integer itemCount) { this.itemCount = itemCount; }

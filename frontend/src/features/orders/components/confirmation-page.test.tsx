@@ -41,7 +41,7 @@ describe("persisted confirmation", () => {
     );
     renderPage();
     expect(await screen.findByText(/Apple × 2/)).toBeInTheDocument();
-    expect(screen.getByText("Total: 2.00")).toBeInTheDocument();
+    expect(screen.getByText("Total: 2.00 SEK")).toBeInTheDocument();
   });
   it("renders missing and ownership failures without data", async () => {
     vi.stubGlobal(

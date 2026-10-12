@@ -19,7 +19,7 @@ import {
 
 type CheckoutFormProps = Readonly<{
   cart: CartSummary;
-  onConfirmed(order: Order): void;
+  onConfirmed(order: Order): void | Promise<void>;
   submitOrder(input: {
     cartId: number;
     idempotencyKey: string;
@@ -57,7 +57,7 @@ export function CheckoutForm({
       });
       setCheckoutAttemptState(cart.id, "SUCCEEDED");
       clearCheckoutAttempt(cart.id);
-      onConfirmed(order);
+      await onConfirmed(order);
     } catch (error) {
       setCheckoutAttemptState(
         cart.id,
@@ -87,7 +87,9 @@ export function CheckoutForm({
       <p className="eyebrow">ORDER REVIEW</p>
       <h2>Checkout</h2>
       <p className="muted">Review your cart and place your order.</p>
-      <p>Cart total: {cart.total.toFixed(2)}</p>
+      <p>
+        Cart total: {cart.total.toFixed(2)} {cart.currency ?? "SEK"}
+      </p>
       <ul aria-label="Cart summary">
         {cart.items.map((item) => (
           <li key={item.productId}>
@@ -111,7 +113,7 @@ export function CheckoutForm({
         }
         type="submit"
       >
-        {form.formState.isSubmitting ? "Submitting..." : "Submit order"}
+        {form.formState.isSubmitting ? "Starting secure payment..." : "Continue to payment"}
       </button>
     </form>
   );

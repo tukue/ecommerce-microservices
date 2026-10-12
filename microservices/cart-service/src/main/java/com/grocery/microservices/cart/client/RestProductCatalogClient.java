@@ -34,7 +34,8 @@ public class RestProductCatalogClient implements ProductCatalogClient {
         try {
             CatalogProduct product = restTemplate.getForObject("/products/{productId}", CatalogProduct.class, productId);
             if (product == null || !productId.equals(product.id()) || product.name() == null
-                    || product.name().isBlank() || product.price() <= 0 || product.available() == null) {
+                    || product.name().isBlank() || product.price() <= 0 || product.currency() == null
+                    || !product.currency().matches("[A-Z]{3}") || product.available() == null) {
                 throw new ProductCatalogUnavailableException();
             }
             return product;

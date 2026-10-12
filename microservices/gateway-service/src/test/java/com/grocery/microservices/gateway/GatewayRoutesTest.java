@@ -31,8 +31,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <h3>What is tested</h3>
  * <ul>
  *   <li>Each route in {@link com.grocery.microservices.gateway.config.GatewayRoutesConfig}
- *       is exercised: correct upstream is called, {@code StripPrefix} strips the
- *       right number of path segments, and required headers are forwarded.</li>
+ *       is exercised: the correct upstream and path are used, and required
+ *       headers are forwarded.</li>
  *   <li>The {@link com.grocery.microservices.gateway.filter.CorrelationIdFilter}
  *       injects {@code X-Correlation-Id} on every request.</li>
  *   <li>Actuator health endpoint is reachable without authentication.</li>
@@ -179,12 +179,12 @@ class GatewayRoutesTest {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Cart route: StripPrefix(2) removes /api/customer
+    // Customer route preserves /api/customer for the controller mapping.
     // ─────────────────────────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("Cart route: StripPrefix(2) strips /api/customer before forwarding")
-    void cartRouteStripsApiCustomerPrefix() throws InterruptedException {
+    @DisplayName("Cart route preserves /api/customer before forwarding")
+    void cartRoutePreservesApiCustomerPrefix() throws InterruptedException {
         cartServer.enqueue(new MockResponse()
                 .setResponseCode(200)
                 .addHeader("Content-Type", "application/json")
@@ -197,8 +197,8 @@ class GatewayRoutesTest {
         RecordedRequest recorded = cartServer.takeRequest(2, TimeUnit.SECONDS);
         assertThat(recorded).isNotNull();
         assertThat(recorded.getPath())
-                .as("StripPrefix(2) must strip /api/customer; upstream sees /cart")
-                .isEqualTo("/cart");
+                .as("CartController is mapped under /api/customer")
+                .isEqualTo("/api/customer/cart");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -206,7 +206,7 @@ class GatewayRoutesTest {
     // ─────────────────────────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("Checkout route: POST /api/customer/checkout → order-service /checkout")
+    @DisplayName("Checkout route: POST /api/customer/checkout preserves the controller path")
     void checkoutRouteForwardsToOrderService() throws InterruptedException {
         orderServer.enqueue(new MockResponse()
                 .setResponseCode(201)
@@ -223,31 +223,64 @@ class GatewayRoutesTest {
         assertThat(recorded).isNotNull();
         assertThat(recorded.getMethod()).isEqualTo("POST");
         assertThat(recorded.getPath())
-                .as("StripPrefix(2) must yield /checkout on order-service")
-                .isEqualTo("/checkout");
+                .as("OrderController is mapped under /api/customer")
+                .isEqualTo("/api/customer/checkout");
+    }
+
+    @Test
+    @DisplayName("Payment session route preserves the authenticated order path")
+    void paymentSessionRouteForwardsToOrderService() throws InterruptedException {
+        orderServer.enqueue(new MockResponse().setResponseCode(200)
+                .addHeader("Content-Type", "application/json")
+                .setBody("{\"checkoutUrl\":\"https://checkout.stripe.com/session\"}"));
+
+        client.post().uri("/api/customer/orders/42/payment-session")
+                .exchange()
+                .expectStatus().isOk();
+
+        RecordedRequest recorded = orderServer.takeRequest(2, TimeUnit.SECONDS);
+        assertThat(recorded).isNotNull();
+        assertThat(recorded.getPath()).isEqualTo("/api/customer/orders/42/payment-session");
+    }
+
+    @Test
+    @DisplayName("Stripe webhook is public and forwarded to the signed webhook endpoint")
+    void stripeWebhookForwardsToOrderService() throws InterruptedException {
+        orderServer.enqueue(new MockResponse().setResponseCode(204));
+
+        client.post().uri("/api/webhooks/stripe")
+                .header("Stripe-Signature", "test-signature")
+                .bodyValue("{}")
+                .exchange()
+                .expectStatus().isNoContent();
+
+        RecordedRequest recorded = orderServer.takeRequest(2, TimeUnit.SECONDS);
+        assertThat(recorded).isNotNull();
+        assertThat(recorded.getPath()).isEqualTo("/webhooks/stripe");
+        assertThat(recorded.getHeader("Stripe-Signature")).isEqualTo("test-signature");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Summaries route → summary-service
+    // Ledger route → ledger-service
     // ─────────────────────────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("Summaries route: GET /api/customer/summaries/{id} → summary-service /summaries/{id}")
-    void summariesRouteStripsPrefix() throws InterruptedException {
+    @DisplayName("Ledger route preserves the customer API prefix")
+    void ledgerRoutePreservesPrefix() throws InterruptedException {
         summaryServer.enqueue(new MockResponse()
                 .setResponseCode(200)
                 .addHeader("Content-Type", "application/json")
-                .setBody("{\"receiptId\":\"r-99\",\"total\":42.50}"));
+                .setBody("{\"orderCount\":0,\"recentOrders\":[]}"));
 
-        client.get().uri("/api/customer/summaries/r-99")
+        client.get().uri("/api/customer/ledger")
                 .exchange()
                 .expectStatus().isOk();
 
         RecordedRequest recorded = summaryServer.takeRequest(2, TimeUnit.SECONDS);
         assertThat(recorded).isNotNull();
         assertThat(recorded.getPath())
-                .as("StripPrefix(2) must yield /summaries/r-99 on summary-service")
-                .isEqualTo("/summaries/r-99");
+                .as("LedgerController is mapped under /api/customer/ledger")
+                .isEqualTo("/api/customer/ledger");
     }
 
     // ─────────────────────────────────────────────────────────────────────────

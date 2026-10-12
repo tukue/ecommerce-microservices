@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { notifySessionExpired } from "../../../shared/http/session-expired";
 import {
   ApplicationError,
@@ -9,6 +10,10 @@ import {
   orderResponseSchema,
   type OrderResponseDto,
 } from "./order.schemas";
+
+const paymentSessionResponseSchema = z.object({
+  checkoutUrl: z.string().url(),
+});
 
 export async function submitCheckout(
   input: unknown,
@@ -29,6 +34,26 @@ export async function submitCheckout(
     notifySessionExpired(response.status);
     if (!response.ok) throw checkoutErrorForStatus(response.status);
     return orderResponseSchema.parse(await response.json());
+  } catch (error) {
+    if (error instanceof ApplicationError) throw error;
+    throw createApplicationError("service-unavailable");
+  }
+}
+
+export async function createPaymentSession(
+  orderId: number,
+): Promise<{ checkoutUrl: string }> {
+  if (!Number.isSafeInteger(orderId) || orderId <= 0) {
+    throw createApplicationError("validation", undefined, "Invalid order.");
+  }
+  try {
+    const response = await fetch(
+      `/api/customer/orders/${orderId}/payment-session`,
+      { method: "POST" },
+    );
+    notifySessionExpired(response.status);
+    if (!response.ok) throw checkoutErrorForStatus(response.status);
+    return paymentSessionResponseSchema.parse(await response.json());
   } catch (error) {
     if (error instanceof ApplicationError) throw error;
     throw createApplicationError("service-unavailable");

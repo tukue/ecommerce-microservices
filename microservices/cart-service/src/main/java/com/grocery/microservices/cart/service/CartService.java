@@ -10,6 +10,8 @@ import com.grocery.microservices.cart.exception.CartNotFoundException;
 import com.grocery.microservices.cart.exception.CartAlreadyCheckedOutException;
 import com.grocery.microservices.cart.exception.ProductUnavailableException;
 import com.grocery.microservices.cart.exception.InsufficientProductStockException;
+import com.grocery.microservices.cart.exception.ProductCatalogUnavailableException;
+import com.grocery.microservices.cart.exception.MixedCurrencyCartException;
 import com.grocery.microservices.cart.model.Cart;
 import com.grocery.microservices.cart.model.CartItem;
 import com.grocery.microservices.cart.model.CartStatus;
@@ -68,6 +70,14 @@ public class CartService {
         if (!product.available()) {
             throw new ProductUnavailableException(productId);
         }
+        if (product.currency() == null || !product.currency().matches("[A-Z]{3}")) {
+            throw new ProductCatalogUnavailableException();
+        }
+        if (cart.getItems().isEmpty()) {
+            cart.setCurrency(product.currency());
+        } else if (!product.currency().equals(cart.getCurrency())) {
+            throw new MixedCurrencyCartException();
+        }
         int requestedQuantity = cart.getItems().stream()
                 .filter(item -> productId.equals(item.getProductId()))
                 .mapToInt(CartItem::getQuantity)
@@ -75,12 +85,18 @@ public class CartService {
         if (product.stockQuantity() < requestedQuantity) {
             throw new InsufficientProductStockException(productId, requestedQuantity, product.stockQuantity());
         }
-        CartItem item = new CartItem();
-        item.setProductId(product.id());
+        CartItem item = cart.getItems().stream()
+                .filter(existing -> productId.equals(existing.getProductId()))
+                .findFirst()
+                .orElseGet(() -> {
+                    CartItem newItem = new CartItem();
+                    newItem.setProductId(product.id());
+                    cart.getItems().add(newItem);
+                    return newItem;
+                });
         item.setProductName(product.name());
         item.setPrice(product.price());
-        item.setQuantity(quantity);
-        cart.getItems().add(item);
+        item.setQuantity(item.getQuantity() + quantity);
         Cart updatedCart = repo.save(cart);
         log.info("EVENT=ITEM_ADDED_TO_CART CART_ID={} PRODUCT={} QTY={}",
             cartId, item.getProductName(), item.getQuantity());
@@ -94,6 +110,9 @@ public class CartService {
         assertOpen(cart);
         CartItem item = getCartItem(cart, cartId, itemId);
         cart.getItems().remove(item);
+        if (cart.getItems().isEmpty()) {
+            cart.setCurrency(null);
+        }
         Cart updatedCart = repo.save(cart);
         log.info("EVENT=ITEM_REMOVED_FROM_CART CART_ID={} ITEM_ID={}", cartId, itemId);
         return toDTO(updatedCart);
@@ -122,12 +141,13 @@ public class CartService {
     }
 
     @Transactional
-    public CartDTO markOpen(Long cartId, AuthenticatedCustomer customer) {
-        Cart cart = findOwnedCart(cartId, customer);
-        cart.setStatus(CartStatus.OPEN);
-        Cart updatedCart = repo.save(cart);
-        log.info("EVENT=CART_REVERTED_TO_OPEN CART_ID={} CUSTOMER={}", cartId, customer.customerId());
-        return toDTO(updatedCart);
+    public void reopenCartInternally(Long cartId) {
+        Cart cart = repo.findById(cartId).orElseThrow(() -> new CartNotFoundException(cartId));
+        if (cart.getStatus() == CartStatus.CHECKED_OUT) {
+            cart.setStatus(CartStatus.OPEN);
+            repo.save(cart);
+            log.info("EVENT=CART_REOPENED_AFTER_PAYMENT_EXPIRY CART_ID={}", cartId);
+        }
     }
 
     private Cart findOwnedCart(Long cartId, AuthenticatedCustomer customer) {
@@ -139,6 +159,7 @@ public class CartService {
         CartDTO dto = new CartDTO();
         dto.setId(cart.getId());
         dto.setStatus(cart.getStatus().name());
+        dto.setCurrency(cart.getCurrency());
         if (cart.getItems() != null) {
             dto.setItems(cart.getItems().stream().map(this::toDTO).collect(Collectors.toList()));
         }
