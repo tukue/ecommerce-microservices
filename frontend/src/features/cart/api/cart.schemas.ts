@@ -11,7 +11,11 @@ export const cartItemResponseSchema = z.object({
 });
 
 export const cartResponseSchema = z.object({
-  currency: z.string().regex(/^[A-Z]{3}$/).nullable().default(null),
+  currency: z
+    .string()
+    .regex(/^[A-Z]{3}$/)
+    .nullable()
+    .default(null),
   id: z.number().int().positive(),
   items: z.array(cartItemResponseSchema),
   status: cartStatusSchema,

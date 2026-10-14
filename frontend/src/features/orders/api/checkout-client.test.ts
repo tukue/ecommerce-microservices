@@ -36,7 +36,9 @@ describe("submitCheckout", () => {
     it("requests a hosted checkout URL for the order", async () => {
       const fetchMock = vi.fn().mockResolvedValue(
         new Response(
-          JSON.stringify({ checkoutUrl: "https://checkout.stripe.com/session" }),
+          JSON.stringify({
+            checkoutUrl: "https://checkout.stripe.com/session",
+          }),
         ),
       );
       vi.stubGlobal("fetch", fetchMock);

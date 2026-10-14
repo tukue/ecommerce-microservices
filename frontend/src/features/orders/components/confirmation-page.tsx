@@ -91,7 +91,11 @@ export function ConfirmationPage() {
         <p className="eyebrow">
           {order.status === "COMPLETED" ? "PAYMENT RECEIVED" : "ORDER STATUS"}
         </p>
-        <h1>{order.status === "COMPLETED" ? "Order Confirmed" : "Payment processing"}</h1>
+        <h1>
+          {order.status === "COMPLETED"
+            ? "Order Confirmed"
+            : "Payment processing"}
+        </h1>
         <p role="status">
           {order.status === "PENDING"
             ? "We are confirming your payment. This page updates automatically."

@@ -184,7 +184,7 @@ public class StripePaymentService {
                             + "?session_id={CHECKOUT_SESSION_ID}")
                     .setCancelUrl(frontendBaseUrl + "/checkout?payment=cancelled&orderId=" + order.getId())
                     .setExpiresAt(Instant.now().plus(35, ChronoUnit.MINUTES).getEpochSecond())
-                    .addPaymentMethodType(SessionCreateParams.PaymentMethodType.CARD)
+                    .addAllowedPaymentMethodType(SessionCreateParams.AllowedPaymentMethodType.CARD)
                     .putMetadata("orderId", order.getId().toString())
                     .putMetadata("attemptNumber", Integer.toString(attemptNumber));
 

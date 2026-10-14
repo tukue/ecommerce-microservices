@@ -113,7 +113,9 @@ export function CheckoutForm({
         }
         type="submit"
       >
-        {form.formState.isSubmitting ? "Starting secure payment..." : "Continue to payment"}
+        {form.formState.isSubmitting
+          ? "Starting secure payment..."
+          : "Continue to payment"}
       </button>
     </form>
   );

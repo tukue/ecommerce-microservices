@@ -2,10 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { useCart } from "../../cart";
-import {
-  createPaymentSession,
-  submitCheckout,
-} from "../api/checkout-client";
+import { createPaymentSession, submitCheckout } from "../api/checkout-client";
 import { toOrder } from "../api/order.mappers";
 import type { CartSummary, Order } from "../domain/order";
 import { CheckoutForm } from "./checkout-form";
@@ -90,7 +87,11 @@ export function CheckoutPage({
         <h1>Payment not completed</h1>
         <p>Your order is still reserved. You can return to secure checkout.</p>
         {paymentRetryError && <p role="alert">{paymentRetryError}</p>}
-        <button type="button" disabled={retryingPayment} onClick={() => void retryPayment()}>
+        <button
+          type="button"
+          disabled={retryingPayment}
+          onClick={() => void retryPayment()}
+        >
           {retryingPayment ? "Starting payment..." : "Pay for order"}
         </button>
         <Link to="/products">Continue shopping</Link>
