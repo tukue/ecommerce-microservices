@@ -164,10 +164,14 @@ export async function mockApi(page: Page) {
       method === "GET"
     ) {
       receiptReads++;
+      // Keep the receipt pending across the first polls so the
+      // confirmation page's pending state is observable instead of
+      // flashing by before assertions start (cold page loads).
+      const pending = receiptReads <= 2;
       await json(
         route,
-        receiptReads === 1 ? 202 : 200,
-        receiptReads === 1
+        pending ? 202 : 200,
+        pending
           ? { status: "pending" }
           : { status: "ready", content: "Grove receipt — Apple — Total: 2.29" },
       );
