@@ -20,7 +20,7 @@ public class StripeWebhookController {
     @PostMapping("/stripe")
     public ResponseEntity<Void> receiveStripeEvent(
             @RequestBody String payload,
-            @RequestHeader(name = "Stripe-Signature", required = false) String signature) {
+            @RequestHeader(name = "Stripe-Signature") String signature) {
         stripePaymentService.handleWebhook(payload, signature);
         return ResponseEntity.noContent().build();
     }

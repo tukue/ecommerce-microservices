@@ -142,6 +142,14 @@ public class GlobalExceptionHandler {
         return createErrorResponse(HttpStatus.BAD_REQUEST, "Malformed request body", request);
     }
 
+    @ExceptionHandler(org.springframework.web.bind.MissingRequestHeaderException.class)
+    public ResponseEntity<ErrorResponse> handleMissingHeader(
+            org.springframework.web.bind.MissingRequestHeaderException ex,
+            HttpServletRequest request) {
+        return createErrorResponse(HttpStatus.BAD_REQUEST,
+                "Missing required header: " + ex.getHeaderName(), request);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(Exception ex, HttpServletRequest request) {
         log.error("Unhandled request failure for {}", request.getRequestURI(), ex);
