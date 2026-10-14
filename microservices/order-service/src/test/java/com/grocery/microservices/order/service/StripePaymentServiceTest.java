@@ -62,6 +62,17 @@ class StripePaymentServiceTest {
         verify(paymentAttemptRepository, never()).save(attempt);
     }
 
+    @Test
+    void missingSignatureIsRejectedBeforeVerification() {
+        StripePaymentService verifier = new StripePaymentService(orderService, orderRepository,
+                paymentAttemptRepository, "sk_test", "whsec_test", "http://localhost:5173");
+
+        assertThrows(InvalidStripeWebhookException.class,
+                () -> verifier.handleWebhook("{}", null));
+        assertThrows(InvalidStripeWebhookException.class,
+                () -> verifier.handleWebhook("{}", "  "));
+    }
+
     private Order pendingOrder(String userId) {
         Order order = new Order();
         order.setId(10L);

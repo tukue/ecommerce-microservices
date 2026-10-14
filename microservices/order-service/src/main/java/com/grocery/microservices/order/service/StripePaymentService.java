@@ -97,6 +97,9 @@ public class StripePaymentService {
 
     @Transactional
     public void handleWebhook(String payload, String signature) {
+        if (signature == null || signature.isBlank()) {
+            throw new InvalidStripeWebhookException();
+        }
         if (stripeWebhookSecret == null || stripeWebhookSecret.isBlank()) {
             throw new PaymentUnavailableException();
         }
