@@ -1,6 +1,7 @@
 package com.grocery.microservices.order.service;
 
 import com.grocery.microservices.order.model.Order;
+import com.grocery.microservices.order.model.OrderLine;
 import com.grocery.microservices.order.model.OrderStatus;
 import com.grocery.microservices.order.config.AuthenticatedCustomer;
 import com.grocery.microservices.order.client.CartClient;
