@@ -181,6 +181,26 @@ export async function mockApi(page: Page) {
       await json(route, order ? 200 : 404, order ?? { status: 404 });
       return;
     }
+    const paymentSessionPath = path.match(
+      /^\/api\/customer\/orders\/(\d+)\/payment-session$/,
+    );
+    if (paymentSessionPath && method === "POST") {
+      const order = orders.find(
+        (candidate) => candidate.id === Number(paymentSessionPath[1]),
+      );
+      if (!order) {
+        await json(route, 404, { status: 404 });
+        return;
+      }
+      // Simulate a successful hosted payment: the signed webhook completes
+      // the order, so the confirmation page observes a COMPLETED order.
+      order.status = "COMPLETED";
+      const origin = new URL(request.url()).origin;
+      await json(route, 200, {
+        checkoutUrl: `${origin}/confirmation/${order.id}`,
+      });
+      return;
+    }
     await json(route, 404, {
       status: 404,
       message: `Unmocked API request: ${method} ${path}`,
@@ -232,7 +252,7 @@ export async function placeOrder(page: Page) {
       response.url().includes("/api/customer/checkout") &&
       response.request().method() === "POST",
   );
-  await page.getByRole("button", { name: "Submit order" }).click();
+  await page.getByRole("button", { name: "Continue to payment" }).click();
   const response = await checkoutResponse;
   expect(response.status(), await response.text()).toBe(201);
   await expect(page).toHaveURL(/\/confirmation\/\d+$/);
