@@ -527,11 +527,6 @@ resource "aws_codebuild_project" "grocellery_terraform" {
     image        = "aws/codebuild/standard:7.0"
     type         = "LINUX_CONTAINER"
 
-    environment_variable {
-      name  = "TF_VAR_initial_db_password"
-      value = aws_secretsmanager_secret.db_password.name
-      type  = "SECRETS_MANAGER"
-    }
   }
 
   source {
@@ -712,15 +707,24 @@ resource "aws_iam_policy" "codebuild_app_build_policy" {
 
 resource "aws_iam_policy" "codebuild_secrets_manager_policy" {
   name        = "grocellery-codebuild-secrets-manager-policy"
-  description = "Policy to allow CodeBuild to read the DB password from Secrets Manager"
+  description = "Allow Terraform CodeBuild to manage the OIDC configuration secret"
 
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
       {
-        Effect   = "Allow",
-        Action   = "secretsmanager:GetSecretValue",
-        Resource = aws_secretsmanager_secret.db_password.arn
+        Effect = "Allow",
+        Action = [
+          "secretsmanager:CreateSecret",
+          "secretsmanager:DeleteSecret",
+          "secretsmanager:DescribeSecret",
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:PutSecretValue",
+          "secretsmanager:UpdateSecret",
+          "secretsmanager:TagResource",
+          "secretsmanager:UntagResource"
+        ],
+        Resource = "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${local.name_prefix}/*"
       }
     ]
   })
@@ -771,6 +775,27 @@ resource "aws_iam_role_policy_attachment" "codebuild_app_build_attachment" {
 resource "aws_iam_role_policy_attachment" "terraform_secrets_manager_attachment" {
   role       = aws_iam_role.codebuild_terraform_role.name
   policy_arn = aws_iam_policy.codebuild_secrets_manager_policy.arn
+}
+
+resource "aws_iam_policy" "codebuild_runtime_configuration_policy" {
+  name        = "grocellery-codebuild-runtime-configuration-policy"
+  description = "Allow Terraform CodeBuild to read per-environment runtime parameters"
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect   = "Allow",
+        Action   = ["ssm:GetParameter"],
+        Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/${var.project_name}/*/runtime-configuration"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "terraform_runtime_configuration_attachment" {
+  role       = aws_iam_role.codebuild_terraform_role.name
+  policy_arn = aws_iam_policy.codebuild_runtime_configuration_policy.arn
 }
 
 resource "aws_iam_role_policy_attachment" "codebuild_quick_test_attachment" {

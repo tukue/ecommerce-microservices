@@ -67,6 +67,33 @@ variable "private_subnet_ids" {
   type        = list(string)
 }
 
+variable "private_subnet_cidrs" {
+  description = "CIDR blocks allowed to reach services over the private VPC network"
+  type        = list(string)
+}
+
+variable "service_discovery_namespace_id" {
+  description = "Shared Cloud Map private DNS namespace ID"
+  type        = string
+}
+
+variable "runtime_environment" {
+  description = "Non-secret application environment variables for this service"
+  type        = map(string)
+  default     = {}
+}
+
+variable "cors_allowed_origins" {
+  description = "Comma-separated browser origins allowed to call the service"
+  type        = string
+}
+
+variable "runtime_secrets" {
+  description = "Environment variable names mapped to Secrets Manager valueFrom references"
+  type        = map(string)
+  default     = {}
+}
+
 variable "alb_security_group_id" {
   description = "The security group ID of the Application Load Balancer"
   type        = string
@@ -97,6 +124,11 @@ variable "db_name" {
   type        = string
 }
 
+variable "db_username" {
+  description = "RDS database username"
+  type        = string
+}
+
 variable "db_secret_arn" {
   description = "ARN of the database secret in Secrets Manager"
   type        = string
@@ -107,9 +139,16 @@ variable "jwt_secret_arn" {
   type        = string
 }
 
-variable "service_config_parameter_arn" {
-  description = "ARN of the per-service SSM parameter containing environment config"
+variable "secrets_kms_key_arn" {
+  description = "KMS key ARN used to encrypt application secrets"
   type        = string
+}
+
+variable "kafka_sasl_jaas_secret_arn" {
+  description = "Optional Secrets Manager ARN for Kafka SASL JAAS configuration"
+  type        = string
+  default     = ""
+  sensitive   = true
 }
 
 variable "enable_monitoring" {

@@ -26,11 +26,12 @@ class LedgerMigrationTest {
             Flyway.configure().dataSource(url, "sa", "")
                     .locations("classpath:db/migration/ledger").load().migrate();
 
-            try (var rows = statement.executeQuery("SELECT user_id, order_id, total_amount FROM ledger")) {
+            try (var rows = statement.executeQuery("SELECT user_id, order_id, total_amount, currency FROM ledger")) {
                 assertThat(rows.next()).isTrue();
                 assertThat(rows.getString("user_id")).isEqualTo("customer-1");
                 assertThat(rows.getLong("order_id")).isEqualTo(42);
                 assertThat(rows.getBigDecimal("total_amount")).isEqualByComparingTo("19.50");
+                assertThat(rows.getString("currency")).isEqualTo("SEK");
                 assertThat(rows.next()).isFalse();
             }
             assertThatThrownBy(() -> statement.executeUpdate(

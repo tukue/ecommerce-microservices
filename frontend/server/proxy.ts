@@ -85,6 +85,12 @@ const rules: readonly RouteRule[] = [
     service: "order",
     protected: true,
   },
+  {
+    methods: ["POST"],
+    pattern: /^\/api\/customer\/orders\/\d+\/payment-session$/,
+    service: "order",
+    protected: true,
+  },
 ];
 
 function stripCatalog(path: string): string {

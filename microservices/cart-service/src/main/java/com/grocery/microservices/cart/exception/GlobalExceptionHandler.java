@@ -70,6 +70,12 @@ public class GlobalExceptionHandler {
         return createErrorResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(MixedCurrencyCartException.class)
+    public ResponseEntity<ErrorResponse> handleMixedCurrencyCart(MixedCurrencyCartException ex,
+                                                                  HttpServletRequest request) {
+        return createErrorResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(ProductCatalogUnavailableException.class)
     public ResponseEntity<ErrorResponse> handleProductCatalogUnavailableException(
             ProductCatalogUnavailableException ex, HttpServletRequest request) {

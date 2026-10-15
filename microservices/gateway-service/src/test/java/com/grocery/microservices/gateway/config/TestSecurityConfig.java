@@ -28,8 +28,8 @@ import java.util.Map;
  *   <li><b>Rate limiter stub</b> — replaces the {@link RedisRateLimiter} bean
  *       declared in {@link RateLimitConfig} with a no-op implementation that
  *       always allows requests. This prevents Spring from attempting a Redis
- *       connection during tests. Redis templates remain configured for the
- *       limiter lifecycle; Redis health checks are disabled in the test profile.</li>
+ *       connection during tests even though Redis autoconfiguration is excluded
+ *       in {@code application-test.properties}.</li>
  * </ol>
  */
 @TestConfiguration

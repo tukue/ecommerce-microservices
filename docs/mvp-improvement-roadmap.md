@@ -119,9 +119,14 @@ pending or terminally failed events.
 - **Stage 1 (Security):** implemented. Single shared issuer/JWKS across services, demo
   auth removed outside dev, summary writes restricted to event processing, ownership
   checks with cross-service authentication tests.
-- **Stage 2 (Cloud Runtime):** not started. ECS task definitions still lack
-  `CORS_ALLOWED_ORIGINS`, Kafka bootstrap/security, and service URL injection; managed
-  Kafka not yet provisioned.
+- **Stage 2 (Cloud Runtime):** ECS task definitions now inject the explicit CORS
+  allowlist, TLS/SASL Kafka settings for order and summary, and Cloud Map service URLs;
+  all services use the `prod` profile and RDS-managed credentials. The shared private
+  DNS namespace and service-to-service security-group access are wired, and the
+  CodeBuild plan/apply jobs read environment-specific runtime configuration from
+  Parameter Store. The broker remains externally managed and its endpoints and CORS
+  origins must be configured in the per-environment runtime parameter; a deployed
+  cloud-like container smoke test is still outstanding.
 - **Stage 3 (Migrations):** implemented. Flyway `V1__init_schema.sql` per service
   (plus `product-service V2__seed_demo_products.sql`); docker/prod use
   `ddl-auto=validate` with Flyway enabled; dev/test keep Hibernate-managed H2.

@@ -70,7 +70,6 @@ export interface AuthConfig {
   oidc?: OidcConfig;
   publicOrigin: string;
 }
-
 /**
  * Service URLs visible to the BFF.
  *

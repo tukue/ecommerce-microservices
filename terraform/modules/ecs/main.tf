@@ -18,18 +18,18 @@ resource "aws_ecs_task_definition" "service" {
       cpu       = var.task_cpu
       memory    = var.task_memory
       essential = true
-      
+
       portMappings = [
         {
           containerPort = var.container_port
           protocol      = "tcp"
         }
       ]
-      
-      environment = [
+
+      environment = concat([
         {
           name  = "SPRING_PROFILES_ACTIVE"
-          value = var.environment
+          value = "prod"
         },
         {
           name  = "SERVER_PORT"
@@ -41,11 +41,20 @@ resource "aws_ecs_task_definition" "service" {
         },
         {
           name  = "SPRING_DATASOURCE_USERNAME"
-          value = "grocellery"
+          value = var.db_username
+        },
+        {
+          name  = "CORS_ALLOWED_ORIGINS"
+          value = var.cors_allowed_origins
         }
-      ]
-      
-      secrets = [
+        ], [
+        for name, value in var.runtime_environment : {
+          name  = name
+          value = value
+        }
+      ])
+
+      secrets = concat([
         {
           name      = "SPRING_DATASOURCE_PASSWORD"
           valueFrom = "${var.db_secret_arn}:password::"
@@ -57,13 +66,14 @@ resource "aws_ecs_task_definition" "service" {
         {
           name      = "JWT_AUDIENCE"
           valueFrom = "${var.jwt_secret_arn}:audience::"
-        },
-        {
-          name      = "SERVICE_CONFIG"
-          valueFrom = "${var.service_config_parameter_arn}"
         }
-      ]
-      
+        ], [
+        for name, value_from in var.runtime_secrets : {
+          name      = name
+          valueFrom = value_from
+        }
+      ])
+
       healthCheck = {
         command = [
           "CMD-SHELL",
@@ -74,7 +84,7 @@ resource "aws_ecs_task_definition" "service" {
         retries     = 3
         startPeriod = 60
       }
-      
+
       logConfiguration = {
         logDriver = "awslogs"
         options = {
@@ -83,10 +93,10 @@ resource "aws_ecs_task_definition" "service" {
           "awslogs-stream-prefix" = "ecs"
         }
       }
-      
+
       # Security settings
       readonlyRootFilesystem = false
-      user                  = "1000:1000"
+      user                   = "1000:1000"
     }
   ])
 
@@ -98,15 +108,15 @@ resource "aws_ecs_task_definition" "service" {
 }
 
 resource "aws_ecs_service" "service" {
-  name            = "${local.name_prefix}-${var.service_name}"
-  cluster         = var.ecs_cluster_id
-  task_definition = aws_ecs_task_definition.service.arn
-  desired_count   = var.desired_count
-  launch_type     = "FARGATE"
+  name             = "${local.name_prefix}-${var.service_name}"
+  cluster          = var.ecs_cluster_id
+  task_definition  = aws_ecs_task_definition.service.arn
+  desired_count    = var.desired_count
+  launch_type      = "FARGATE"
   platform_version = "LATEST"
-  
+
   enable_execute_command = var.environment != "prod"
-  
+
   deployment_maximum_percent         = 200
   deployment_minimum_healthy_percent = 100
 
@@ -121,7 +131,7 @@ resource "aws_ecs_service" "service" {
     container_name   = var.service_name
     container_port   = var.container_port
   }
-  
+
   service_registries {
     registry_arn = aws_service_discovery_service.service.arn
   }
@@ -150,13 +160,17 @@ resource "aws_security_group" "service" {
     protocol        = "tcp"
     security_groups = [var.alb_security_group_id]
   }
-  
-  ingress {
-    description = "Service discovery"
-    from_port   = var.container_port
-    to_port     = var.container_port
-    protocol    = "tcp"
-    self        = true
+
+  dynamic "ingress" {
+    for_each = var.private_subnet_cidrs
+
+    content {
+      description = "Private service traffic from ${ingress.value}"
+      from_port   = var.container_port
+      to_port     = var.container_port
+      protocol    = "tcp"
+      cidr_blocks = [ingress.value]
+    }
   }
 
   egress {
@@ -172,7 +186,7 @@ resource "aws_security_group" "service" {
     Service = var.service_name
     Type    = "security-group"
   })
-  
+
   lifecycle {
     create_before_destroy = true
   }
@@ -184,7 +198,7 @@ resource "aws_lb_target_group" "service" {
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
   target_type = "ip"
-  
+
   deregistration_delay = 30
 
   health_check {
@@ -198,7 +212,7 @@ resource "aws_lb_target_group" "service" {
     healthy_threshold   = 2
     unhealthy_threshold = 3
   }
-  
+
   stickiness {
     type            = "lb_cookie"
     cookie_duration = 86400
@@ -226,7 +240,7 @@ resource "aws_lb_listener_rule" "service" {
       values = ["/${var.service_name}", "/${var.service_name}/*"]
     }
   }
-  
+
   tags = merge(var.common_tags, {
     Name    = "${local.name_prefix}-${var.service_name}-rule"
     Service = var.service_name
@@ -294,13 +308,14 @@ resource "aws_iam_policy" "secrets_access" {
         Effect = "Allow"
         Action = [
           "secretsmanager:GetSecretValue",
-          "ssm:GetParameter"
+          "kms:Decrypt"
         ]
-        Resource = [
+        Resource = compact([
           var.db_secret_arn,
           var.jwt_secret_arn,
-          var.service_config_parameter_arn
-        ]
+          var.kafka_sasl_jaas_secret_arn,
+          var.secrets_kms_key_arn
+        ])
       }
     ]
   })
@@ -339,7 +354,7 @@ resource "aws_service_discovery_service" "service" {
   name = var.service_name
 
   dns_config {
-    namespace_id = aws_service_discovery_private_dns_namespace.main.id
+    namespace_id = var.service_discovery_namespace_id
 
     dns_records {
       ttl  = 10
@@ -353,16 +368,5 @@ resource "aws_service_discovery_service" "service" {
     Name    = "${local.name_prefix}-${var.service_name}-discovery"
     Service = var.service_name
     Type    = "service-discovery"
-  })
-}
-
-resource "aws_service_discovery_private_dns_namespace" "main" {
-  name        = "${local.name_prefix}.local"
-  description = "Private DNS namespace for service discovery"
-  vpc         = var.vpc_id
-
-  tags = merge(var.common_tags, {
-    Name = "${local.name_prefix}-dns-namespace"
-    Type = "service-discovery"
   })
 }

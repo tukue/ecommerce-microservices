@@ -134,7 +134,7 @@ Complete the applicable items before production deployment:
 - [ ] Frontend/BFF deployment dependencies and API compatibility are agreed;
       deploy backend changes first when required by the rollout plan.
 
-**Release decision:** GO / NO-GO  
-**Decision owner and date:**  
-**Deployed commit/image and environment:**  
+**Release decision:** GO / NO-GO
+**Decision owner and date:**
+**Deployed commit/image and environment:**
 **Known risks, rollback trigger, or follow-up work:**

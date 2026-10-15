@@ -19,10 +19,13 @@ import java.net.URI;
 public class RestCartClient implements CartClient {
     private final RestTemplate restTemplate;
     private final String cartServiceBaseUrl;
+    private final String internalServiceKey;
 
     public RestCartClient(RestTemplate restTemplate,
-                          @Value("${services.cart.base-url:http://localhost:8082}") String cartServiceBaseUrl) {
+                          @Value("${services.cart.base-url:http://localhost:8082}") String cartServiceBaseUrl,
+                          @Value("${services.internal-key:}") String internalServiceKey) {
         this.restTemplate = restTemplate;
+        this.internalServiceKey = internalServiceKey;
         URI serviceUri = URI.create(cartServiceBaseUrl);
         if (serviceUri.getHost() == null || serviceUri.getUserInfo() != null
                 || serviceUri.getQuery() != null || serviceUri.getFragment() != null
@@ -80,18 +83,22 @@ public class RestCartClient implements CartClient {
 
     @Override
     public void markOpen(Long cartId, String authorizationHeader) {
-        HttpHeaders headers = authorizationHeaders(authorizationHeader);
+        reopenInternally(cartId);
+    }
+
+    private void reopenInternally(Long cartId) {
+        if (internalServiceKey == null || internalServiceKey.isBlank()) {
+            throw new CartServiceUnavailableException();
+        }
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-Internal-Service-Key", internalServiceKey);
         try {
             restTemplate.exchange(
-                    cartServiceBaseUrl + "/api/customer/cart/{cartId}/open",
+                    cartServiceBaseUrl + "/api/customer/internal/carts/{cartId}/reopen",
                     HttpMethod.POST,
                     new HttpEntity<>(headers),
                     Void.class,
                     cartId);
-        } catch (HttpClientErrorException.NotFound ex) {
-            throw new CheckoutCartNotFoundException(cartId);
-        } catch (HttpClientErrorException.Forbidden | HttpClientErrorException.Unauthorized ex) {
-            throw new CartAccessDeniedException();
         } catch (RestClientException ex) {
             throw new CartServiceUnavailableException();
         }

@@ -19,7 +19,6 @@ import java.time.LocalDateTime;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -60,6 +59,7 @@ public class LedgerControllerTest {
         ledger.setItemCount(2);
         ledger.setDetails("Apple, Banana");
         ledger.setTotalAmount(new BigDecimal("12.5"));
+        ledger.setCurrency("SEK");
         ledger.setCreatedAt(LocalDateTime.now());
 
         when(ledgerService.getOrderCount("customer-1")).thenReturn(1L);
@@ -75,6 +75,7 @@ public class LedgerControllerTest {
                 .andExpect(jsonPath("$.totalSpending").value(12.5))
                 .andExpect(jsonPath("$.averageOrderAmount").value(12.5))
                 .andExpect(jsonPath("$.recentOrders[0].orderId").value(42L))
+                .andExpect(jsonPath("$.recentOrders[0].currency").value("SEK"))
                 .andExpect(jsonPath("$.recentOrders[0].items[0]").value("Apple"));
     }
 
@@ -93,13 +94,14 @@ public class LedgerControllerTest {
     }
 
     @Test
-    public void returnsNotFoundWhenOtherCustomersOrderReceiptIsRequested() throws Exception {
+    public void returnsPendingWhenReceiptHasNotBeenProjectedYet() throws Exception {
         when(ledgerService.getFormattedReceipt("customer-2", 99L))
                 .thenThrow(new LedgerNotFoundException(99L));
 
         mockMvc.perform(get("/api/customer/ledger/orders/99/receipt")
                         .header(HttpHeaders.AUTHORIZATION, bearer(TestJwtSupport.validToken("customer-2"))))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.status").value("pending"));
     }
 
     @Test
@@ -110,6 +112,7 @@ public class LedgerControllerTest {
         mockMvc.perform(get("/api/customer/ledger/orders/42/receipt")
                         .header(HttpHeaders.AUTHORIZATION, bearer(TestJwtSupport.validToken("customer-1"))))
                 .andExpect(status().isOk())
-                .andExpect(content().string("--- RECEIPT ---\nOrder ID: 42\n---------------\n"));
+                .andExpect(jsonPath("$.status").value("ready"))
+                .andExpect(jsonPath("$.content").value("--- RECEIPT ---\nOrder ID: 42\n---------------\n"));
     }
 }

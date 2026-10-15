@@ -27,7 +27,8 @@ class RestProductClientTest {
     @BeforeEach
     void setUp() {
         restTemplate = mock(RestTemplate.class);
-        client = new RestProductClient(restTemplate, new ObjectMapper(), "http://product-service:8080");
+        client = new RestProductClient(restTemplate, new ObjectMapper(), "http://product-service:8080",
+                "internal-test-key");
     }
 
     @Test
@@ -71,5 +72,22 @@ class RestProductClientTest {
                 org.mockito.ArgumentMatchers.eq(Void.class));
 
         assertThat(captured.get().getPath()).isEqualTo("/products/reservations/checkout:customer-1:idem:101");
+    }
+
+    @Test
+    void releaseAfterPaymentExpiryUsesInternalServiceCredential() {
+        when(restTemplate.exchange(any(URI.class), any(HttpMethod.class), any(HttpEntity.class), any(Class.class)))
+                .thenReturn(org.springframework.http.ResponseEntity.noContent().build());
+
+        client.releaseAfterPaymentExpiry("checkout:customer-1:idem:101");
+
+        java.util.concurrent.atomic.AtomicReference<HttpEntity> captured = new java.util.concurrent.atomic.AtomicReference<>();
+        verify(restTemplate).exchange(any(URI.class), org.mockito.ArgumentMatchers.eq(HttpMethod.DELETE),
+                org.mockito.ArgumentMatchers.<HttpEntity>argThat(entity -> {
+                    captured.set(entity);
+                    return true;
+                }), org.mockito.ArgumentMatchers.eq(Void.class));
+        assertThat(captured.get().getHeaders().getFirst("X-Internal-Service-Key"))
+                .isEqualTo("internal-test-key");
     }
 }

@@ -94,8 +94,8 @@ output "security_group_ids" {
 
 # Secrets Manager
 output "db_secret_arn" {
-  description = "ARN of the database password secret"
-  value       = aws_secretsmanager_secret.db_password.arn
+  description = "ARN of the RDS-managed database credential secret"
+  value       = module.rds.db_secret_arn
   sensitive   = true
 }
 

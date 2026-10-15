@@ -11,6 +11,7 @@ public class OrderDTO {
     private OrderStatus status;
     private LocalDateTime orderDate;
     private double total;
+    private String currency;
     private Long cartId;
     private List<OrderLineDTO> orderLines;
 
@@ -53,6 +54,14 @@ public class OrderDTO {
 
     public void setTotal(double total) {
         this.total = total;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
     }
 
     public Long getCartId() {

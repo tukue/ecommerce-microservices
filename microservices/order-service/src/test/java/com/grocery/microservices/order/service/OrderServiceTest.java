@@ -1,6 +1,7 @@
 package com.grocery.microservices.order.service;
 
 import com.grocery.microservices.order.model.Order;
+import com.grocery.microservices.order.model.OrderLine;
 import com.grocery.microservices.order.model.OrderStatus;
 import com.grocery.microservices.order.config.AuthenticatedCustomer;
 import com.grocery.microservices.order.client.CartClient;
@@ -83,17 +84,43 @@ class OrderServiceTest {
         assertNotNull(createdOrder.getOrderDate());
         assertNotNull(createdOrder.getIdempotencyKey());
         verify(orderRepository, times(1)).save(Mockito.any(Order.class));
+        verify(orderEventStore, never()).enqueue(Mockito.any(OrderCreatedEvent.class));
+    }
+
+    @Test
+    void customerCannotMarkOrderPaid() {
+        when(orderRepository.findByIdAndUserId(1L, "customer-1")).thenReturn(Optional.of(testOrder));
+
+        assertThrows(InvalidOrderStateException.class,
+                () -> orderService.updateOrderStatus(1L, OrderStatus.COMPLETED, customer1));
+        verify(orderEventStore, never()).enqueue(Mockito.any(OrderCreatedEvent.class));
+    }
+
+    @Test
+    void verifiedPaymentCompletesOrderAndEnqueuesReceiptEvent() {
+        when(orderRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(testOrder));
+        when(orderRepository.save(Mockito.any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Order paidOrder = orderService.completePayment(1L);
+
+        assertEquals(OrderStatus.COMPLETED, paidOrder.getStatus());
         verify(orderEventStore).enqueue(Mockito.any(OrderCreatedEvent.class));
     }
 
     @Test
-    void testUpdateOrderStatus_Valid() {
-        when(orderRepository.findByIdAndUserId(1L, "customer-1")).thenReturn(Optional.of(testOrder));
+    void paymentExpiryReleasesReservationsAndReopensCart() {
+        testOrder.setCartId(5L);
+        testOrder.setIdempotencyKey("checkout-key");
+        testOrder.setOrderLines(List.of(new OrderLine(101L, "Apples", 2.5, 2)));
+        when(orderRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(testOrder));
         when(orderRepository.save(Mockito.any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Order updatedOrder = orderService.updateOrderStatus(1L, OrderStatus.COMPLETED, customer1);
+        Order cancelledOrder = orderService.expirePayment(1L);
 
-        assertEquals(OrderStatus.COMPLETED, updatedOrder.getStatus());
+        assertEquals(OrderStatus.CANCELLED, cancelledOrder.getStatus());
+        verify(productClient).releaseAfterPaymentExpiry("checkout:customer-1:checkout-key:101");
+        verify(cartClient).markOpen(5L, null);
+        verify(orderEventStore, never()).enqueue(Mockito.any(OrderCreatedEvent.class));
     }
 
     @Test
@@ -358,7 +385,7 @@ class OrderServiceTest {
             orderService.updateOrderStatus(1L, OrderStatus.PENDING, customer1)
         );
 
-        assertEquals("A PENDING order can only be COMPLETED or CANCELLED", exception.getMessage());
+        assertEquals("Order status changes are managed by the payment lifecycle", exception.getMessage());
         verify(orderRepository, never()).save(Mockito.any(Order.class));
     }
 

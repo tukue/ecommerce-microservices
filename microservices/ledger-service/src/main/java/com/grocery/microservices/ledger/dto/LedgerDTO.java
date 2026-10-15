@@ -13,6 +13,7 @@ public class LedgerDTO {
     private List<String> items;
     @Positive(message = "Total must be positive")
     private double total;
+    private String currency;
 
     // Getters and setters
     public Long getId() {
@@ -45,5 +46,13 @@ public class LedgerDTO {
 
     public void setTotal(double total) {
         this.total = total;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
     }
 } 

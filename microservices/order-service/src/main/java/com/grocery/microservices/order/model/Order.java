@@ -19,7 +19,12 @@ public class Order {
     private Long cartId;
     @Column(name = "idempotency_key", length = 64)
     private String idempotencyKey;
+    @Column(name = "correlation_id", length = 100)
+    private String correlationId;
     private double total;
+
+    @Column(nullable = false, length = 3)
+    private String currency = "SEK";
 
     @ElementCollection
     @CollectionTable(name = "order_lines", joinColumns = @JoinColumn(name = "order_id"))
@@ -41,10 +46,14 @@ public class Order {
     public void setCartId(Long cartId) { this.cartId = cartId; }
     public String getIdempotencyKey() { return idempotencyKey; }
     public void setIdempotencyKey(String idempotencyKey) { this.idempotencyKey = idempotencyKey; }
+    public String getCorrelationId() { return correlationId; }
+    public void setCorrelationId(String correlationId) { this.correlationId = correlationId; }
     public java.util.List<OrderLine> getOrderLines() { return orderLines; }
     public void setOrderLines(java.util.List<OrderLine> orderLines) { this.orderLines = new java.util.ArrayList<>(orderLines); }
     public double getTotal() { return total; }
     public void setTotal(double total) { this.total = total; }
+    public String getCurrency() { return currency; }
+    public void setCurrency(String currency) { this.currency = currency; }
     public OrderStatus getStatus() { return status; }
     public void setStatus(OrderStatus status) { this.status = status; }
     public java.time.LocalDateTime getOrderDate() { return orderDate; }

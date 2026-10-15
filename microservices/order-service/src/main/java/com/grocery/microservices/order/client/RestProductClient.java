@@ -26,12 +26,15 @@ public class RestProductClient implements ProductClient {
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
     private final String productServiceBaseUrl;
+    private final String internalServiceKey;
 
     public RestProductClient(RestTemplate restTemplate,
                              ObjectMapper objectMapper,
-                             @Value("${services.product.base-url:http://product-service:8080}") String productServiceBaseUrl) {
+                             @Value("${services.product.base-url:http://product-service:8080}") String productServiceBaseUrl,
+                             @Value("${services.internal-key:}") String internalServiceKey) {
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
+        this.internalServiceKey = internalServiceKey;
         URI serviceUri = URI.create(productServiceBaseUrl);
         if (serviceUri.getHost() == null || serviceUri.getUserInfo() != null
                 || serviceUri.getQuery() != null || serviceUri.getFragment() != null
@@ -115,6 +118,26 @@ public class RestProductClient implements ProductClient {
             if (authorizationHeader != null && !authorizationHeader.isBlank()) {
                 headers.set(HttpHeaders.AUTHORIZATION, authorizationHeader);
             }
+            restTemplate.exchange(uri, HttpMethod.DELETE, new HttpEntity<>(headers), Void.class);
+        } catch (RestClientException ex) {
+            throw new ProductServiceUnavailableException();
+        }
+    }
+
+    @Override
+    public void releaseAfterPaymentExpiry(String reservationKey) {
+        if (internalServiceKey == null || internalServiceKey.isBlank()) {
+            throw new ProductServiceUnavailableException();
+        }
+        try {
+            validateReservationKey(reservationKey);
+            URI uri = UriComponentsBuilder.fromUriString(productServiceBaseUrl)
+                    .pathSegment("products", "reservations", "internal", reservationKey)
+                    .build()
+                    .encode()
+                    .toUri();
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("X-Internal-Service-Key", internalServiceKey);
             restTemplate.exchange(uri, HttpMethod.DELETE, new HttpEntity<>(headers), Void.class);
         } catch (RestClientException ex) {
             throw new ProductServiceUnavailableException();

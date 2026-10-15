@@ -41,6 +41,12 @@ const operations = [
   ["POST", "/api/customer/checkout", "order", "/api/customer/checkout"],
   ["GET", "/api/customer/orders", "order", "/api/customer/orders"],
   ["GET", "/api/customer/orders/1", "order", "/api/customer/orders/1"],
+  [
+    "POST",
+    "/api/customer/orders/1/payment-session",
+    "order",
+    "/api/customer/orders/1/payment-session",
+  ],
 ] as const;
 
 describe("resolveService", () => {

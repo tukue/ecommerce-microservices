@@ -52,13 +52,16 @@ function stubFetch(handler: (input: unknown) => Promise<Response>) {
   );
 }
 
-function renderCheckout(adapter: CartAdapter) {
+function renderCheckout(adapter: CartAdapter, redirectToPayment = vi.fn()) {
   return render(
     <MemoryRouter initialEntries={["/checkout"]}>
       <AuthProvider>
         <CartProvider adapter={adapter}>
           <Routes>
-            <Route path="/checkout" element={<CheckoutPage />} />
+            <Route
+              path="/checkout"
+              element={<CheckoutPage redirectToPayment={redirectToPayment} />}
+            />
             <Route
               path="/confirmation/:orderId"
               element={<ConfirmationPage />}
@@ -80,28 +83,38 @@ describe("CheckoutPage", () => {
           new Response(JSON.stringify({ userId: "u1", email: "a@b.c" })),
         );
       }
+      if (String(input).includes("/payment-session")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({ checkoutUrl: "https://checkout.stripe.com/test" }),
+          ),
+        );
+      }
       return Promise.resolve(new Response(JSON.stringify(mockOrder)));
     });
+    const redirectToPayment = vi.fn();
     const adapter = createMockAdapter({
       getCurrentCart: vi.fn().mockResolvedValue(mockCart),
     });
-    renderCheckout(adapter);
+    renderCheckout(adapter, redirectToPayment);
 
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: /submit order/i }),
+        screen.getByRole("button", { name: /continue to payment/i }),
       ).toBeInTheDocument(),
     );
-    expect(screen.getByText("Cart total: 7.50")).toBeInTheDocument();
+    expect(screen.getByText("Cart total: 7.50 SEK")).toBeInTheDocument();
 
     const submitButton = screen.getByRole("button", {
-      name: /submit order/i,
+      name: /continue to payment/i,
     });
     await waitFor(() => expect(submitButton).toBeEnabled());
     fireEvent.click(submitButton);
 
     await waitFor(() =>
-      expect(screen.getByText("Order ID: 100")).toBeInTheDocument(),
+      expect(redirectToPayment).toHaveBeenCalledWith(
+        "https://checkout.stripe.com/test",
+      ),
     );
     expect(fetch).toHaveBeenCalledWith(
       "/api/customer/checkout",
@@ -109,6 +122,10 @@ describe("CheckoutPage", () => {
         body: expect.stringMatching(/"idempotencyKey":"[0-9a-f-]{36}"/),
         method: "POST",
       }),
+    );
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/customer/orders/100/payment-session",
+      expect.objectContaining({ method: "POST" }),
     );
   });
 
@@ -130,7 +147,7 @@ describe("CheckoutPage", () => {
       expect(screen.getByText(/your cart is empty/i)).toBeInTheDocument(),
     );
     expect(
-      screen.queryByRole("button", { name: /submit order/i }),
+      screen.queryByRole("button", { name: /continue to payment/i }),
     ).not.toBeInTheDocument();
   });
 });

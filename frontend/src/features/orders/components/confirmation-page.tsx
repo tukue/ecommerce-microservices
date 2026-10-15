@@ -13,24 +13,36 @@ export function ConfirmationPage() {
   const id = Number(orderId);
   useEffect(() => {
     let active = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let polls = 0;
     setOrder(null);
     setError(null);
     if (!Number.isSafeInteger(id) || id <= 0) {
       setError(new Error("Invalid order."));
       return;
     }
-    fetchOrder(id)
-      .then((value) => {
-        if (active) setOrder(toOrder(value));
-      })
-      .catch((cause) => {
-        if (active)
+    const loadOrder = async (): Promise<void> => {
+      try {
+        const value = await fetchOrder(id);
+        if (!active) return;
+        const updatedOrder = toOrder(value);
+        setOrder(updatedOrder);
+        if (updatedOrder.status === "PENDING" && polls < 15) {
+          polls += 1;
+          timer = setTimeout(() => void loadOrder(), 2000);
+        }
+      } catch (cause) {
+        if (active) {
           setError(
             cause instanceof Error ? cause : new Error("Unable to load order"),
           );
-      });
+        }
+      }
+    };
+    void loadOrder();
     return () => {
       active = false;
+      if (timer) clearTimeout(timer);
     };
   }, [id, retry]);
   if (error)
@@ -71,12 +83,26 @@ export function ConfirmationPage() {
   return (
     <main>
       <header className="confirmation-header">
-        <span className="success-mark" aria-hidden="true">
-          ✓
-        </span>
-        <p className="eyebrow">YOUR ORDER IS SAVED</p>
-        <h1>Order Confirmed</h1>
-        <p role="status">Thank you for your order!</p>
+        {order.status === "COMPLETED" && (
+          <span className="success-mark" aria-hidden="true">
+            ✓
+          </span>
+        )}
+        <p className="eyebrow">
+          {order.status === "COMPLETED" ? "PAYMENT RECEIVED" : "ORDER STATUS"}
+        </p>
+        <h1>
+          {order.status === "COMPLETED"
+            ? "Order Confirmed"
+            : "Payment processing"}
+        </h1>
+        <p role="status">
+          {order.status === "PENDING"
+            ? "We are confirming your payment. This page updates automatically."
+            : order.status === "CANCELLED"
+              ? "Payment was not completed and the order was cancelled."
+              : "Thank you for your order!"}
+        </p>
         <p>Order ID: {order.id}</p>
       </header>
       <section className="order-details" aria-label="Order details">
@@ -93,8 +119,10 @@ export function ConfirmationPage() {
             </li>
           ))}
         </ul>
-        <p className="order-total">Total: {order.total.toFixed(2)}</p>
-        <ReceiptPanel orderId={order.id} />
+        <p className="order-total">
+          Total: {order.total.toFixed(2)} {order.currency ?? "SEK"}
+        </p>
+        {order.status === "COMPLETED" && <ReceiptPanel orderId={order.id} />}
       </section>
       <div className="confirmation-actions">
         <Link className="button" to="/products">

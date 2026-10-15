@@ -47,7 +47,8 @@ import java.util.List;
  * <h3>Public paths</h3>
  * <ul>
  *   <li>CORS pre-flight OPTIONS on any path</li>
- *   <li>{@code /actuator/health} — readiness for the deployment platform</li>
+ *   <li>{@code /actuator/health}, {@code /actuator/info},
+ *       {@code /actuator/prometheus}</li>
  *   <li>{@code GET /api/catalog/**} — product browsing does not require login</li>
  * </ul>
  *
@@ -83,6 +84,8 @@ public class SecurityConfig {
                         // Session lookup is authenticated by the BFF opaque-cookie store.
                         .pathMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/logout").permitAll()
                         .pathMatchers(HttpMethod.GET, "/api/auth/me").permitAll()
+                        // Stripe authenticates webhook requests with its signature header.
+                        .pathMatchers(HttpMethod.POST, "/api/webhooks/stripe").permitAll()
                         // Everything else requires a valid, unexpired JWT with the
                         // correct issuer and audience
                         .anyExchange().authenticated()

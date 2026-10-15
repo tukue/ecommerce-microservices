@@ -31,7 +31,8 @@ public class LedgerProcessor {
         sb.append("Order ID: ").append(ledger.getOrderId()).append("\n");
         sb.append("Date: ").append(ledger.getCreatedAt()).append("\n");
         sb.append("Items: ").append(ledger.getItemCount()).append("\n");
-        sb.append("Total: $").append(ledger.getTotalAmount()).append("\n");
+        sb.append("Total: ").append(ledger.getTotalAmount()).append(" ")
+                .append(ledger.getCurrency()).append("\n");
         if (ledger.getDetails() != null) {
             sb.append("Details: ").append(ledger.getDetails()).append("\n");
         }

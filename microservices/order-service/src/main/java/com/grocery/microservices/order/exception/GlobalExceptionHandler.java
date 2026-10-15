@@ -1,6 +1,8 @@
 package com.grocery.microservices.order.exception;
 
 import com.grocery.microservices.order.dto.ErrorResponse;
+import com.grocery.microservices.order.exception.PaymentUnavailableException;
+import com.grocery.microservices.order.service.InvalidStripeWebhookException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +41,18 @@ public class GlobalExceptionHandler {
                 request.getRequestURI()
         );
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(PaymentUnavailableException.class)
+    public ResponseEntity<ErrorResponse> handlePaymentUnavailable(PaymentUnavailableException ex,
+                                                                   HttpServletRequest request) {
+        return createErrorResponse(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidStripeWebhookException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidStripeWebhook(InvalidStripeWebhookException ex,
+                                                                     HttpServletRequest request) {
+        return createErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
     @ExceptionHandler(OrderAccessDeniedException.class)
@@ -126,6 +140,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleUnreadableRequest(HttpMessageNotReadableException ex,
                                                                   HttpServletRequest request) {
         return createErrorResponse(HttpStatus.BAD_REQUEST, "Malformed request body", request);
+    }
+
+    @ExceptionHandler(org.springframework.web.bind.MissingRequestHeaderException.class)
+    public ResponseEntity<ErrorResponse> handleMissingHeader(
+            org.springframework.web.bind.MissingRequestHeaderException ex,
+            HttpServletRequest request) {
+        return createErrorResponse(HttpStatus.BAD_REQUEST,
+                "Missing required header: " + ex.getHeaderName(), request);
     }
 
     @ExceptionHandler(Exception.class)

@@ -149,6 +149,6 @@ class LedgerServiceTest {
         String receipt = ledgerService.getFormattedReceipt("customer-1", 1L);
 
         assertTrue(receipt.contains("Order ID: 1"));
-        assertTrue(receipt.contains("Total: $99.99"));
+        assertTrue(receipt.contains("Total: 99.99 SEK"));
     }
 }

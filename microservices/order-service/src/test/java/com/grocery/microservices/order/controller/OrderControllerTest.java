@@ -145,13 +145,13 @@ public class OrderControllerTest {
     @Test
     public void rejectsInvalidOrderStatusTransition() throws Exception {
         when(orderService.updateOrderStatus(anyLong(), any(OrderStatus.class), any(AuthenticatedCustomer.class)))
-                .thenThrow(new InvalidOrderStateException("A PENDING order can only be COMPLETED or CANCELLED"));
+                .thenThrow(new InvalidOrderStateException("Order status changes are managed by the payment lifecycle"));
 
         mockMvc.perform(patch("/api/customer/orders/1/status")
                         .header(HttpHeaders.AUTHORIZATION, bearer(TestJwtSupport.validToken("customer-1")))
                         .param("status", "PENDING"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("A PENDING order can only be COMPLETED or CANCELLED"));
+                .andExpect(jsonPath("$.message").value("Order status changes are managed by the payment lifecycle"));
     }
 
     @Test

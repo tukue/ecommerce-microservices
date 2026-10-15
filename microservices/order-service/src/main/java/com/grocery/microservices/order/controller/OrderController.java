@@ -72,6 +72,7 @@ public class OrderController {
         orderDto.setStatus(order.getStatus());
         orderDto.setOrderDate(order.getOrderDate());
         orderDto.setTotal(order.getTotal());
+        orderDto.setCurrency(order.getCurrency());
         orderDto.setOrderLines(toOrderLineDtos(order.getOrderLines()));
         return orderDto;
     }

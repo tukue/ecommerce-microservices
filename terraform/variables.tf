@@ -78,16 +78,6 @@ variable "db_username" {
   }
 }
 
-variable "initial_db_password" {
-  description = "Initial database password (stored in AWS Secrets Manager)"
-  type        = string
-  sensitive   = true
-  validation {
-    condition     = length(var.initial_db_password) >= 8
-    error_message = "Database password must be at least 8 characters long."
-  }
-}
-
 variable "jwt_issuer_uri" {
   description = "OIDC issuer URL used by the resource servers for JWKS discovery. The prod profile fails startup without it."
   type        = string
@@ -142,6 +132,11 @@ variable "services" {
       desired_count     = 1
       health_check_path = "/actuator/health"
     }
+  }
+
+  validation {
+    condition     = alltrue([for name in ["cart", "order", "product", "summary"] : contains(keys(var.services), name)])
+    error_message = "The cart, order, product, and summary service configurations are required."
   }
 }
 

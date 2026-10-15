@@ -3,6 +3,7 @@ package com.grocery.microservices.e2e;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import com.grocery.microservices.order.OrderServiceApplication;
+import com.grocery.microservices.order.service.OrderService;
 import com.grocery.microservices.order.client.CartClient;
 import com.grocery.microservices.order.client.CartItemSnapshot;
 import com.grocery.microservices.order.client.CartSnapshot;
@@ -132,7 +133,7 @@ class OrderToSummaryFlowIT {
     }
 
     @Test
-    void checkoutPublishesEventConsumedByLedgerService() throws Exception {
+    void verifiedPaymentPublishesEventConsumedByLedgerService() throws Exception {
         String orderToken = login(ORDER_BASE);
         String summaryToken = login(SUMMARY_BASE);
 
@@ -147,9 +148,10 @@ class OrderToSummaryFlowIT {
         long orderId = root.get("id").asLong();
         double total = root.get("total").asDouble();
         assertThat(orderId).isPositive();
-        assertThat(root.get("status").asText()).isNotBlank();
+        assertThat(root.get("status").asText()).isEqualTo("PENDING");
         assertThat(total).isCloseTo(26.25, offset(0.01));
 
+        orderCtx.getBean(OrderService.class).completePayment(orderId);
         awaitSummaryContains(summaryToken, orderId);
         CustomerLedgerDTO summary = getSummary(summaryToken);
         assertThat(summary.getOrderCount()).isGreaterThanOrEqualTo(1);
@@ -238,7 +240,9 @@ class OrderToSummaryFlowIT {
         ResponseEntity<String> resp = orderHttp(token, HttpMethod.POST, "/api/customer/checkout",
                 Map.of("cartId", cartId), idempotencyKey, correlationId);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        return MAPPER.readTree(resp.getBody()).get("id").asLong();
+        long orderId = MAPPER.readTree(resp.getBody()).get("id").asLong();
+        orderCtx.getBean(OrderService.class).completePayment(orderId);
+        return orderId;
     }
 
     private void awaitSummaryContains(String token, long orderId) {
@@ -471,6 +475,11 @@ class OrderToSummaryFlowIT {
                 stock.put(reservation.productId(),
                         stock.getOrDefault(reservation.productId(), 0) + reservation.quantity());
             }
+        }
+
+        @Override
+        public void releaseAfterPaymentExpiry(String reservationKey) {
+            release(reservationKey, null);
         }
     }
 }

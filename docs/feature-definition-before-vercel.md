@@ -114,6 +114,6 @@ Before deploying, confirm each applicable item:
   relevant failure/recovery path.
 - [ ] Monitoring, owner, and rollback/disable procedure are known.
 
-**Release decision:** GO / NO-GO  
-**Decision owner and date:**  
+**Release decision:** GO / NO-GO
+**Decision owner and date:**
 **Known risks or follow-up work:**

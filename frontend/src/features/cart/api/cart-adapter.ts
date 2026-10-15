@@ -9,6 +9,7 @@ export interface CartItemDTO {
 }
 
 export interface CartDTO {
+  currency?: string | null;
   id: number;
   status: string;
   items: CartItemDTO[];

@@ -108,6 +108,8 @@ public class SecurityConfig {
                 ).permitAll()
                 .requestMatchers(demoAuthPaths())
                 .permitAll()
+                .requestMatchers("/api/customer/internal/**")
+                .permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2

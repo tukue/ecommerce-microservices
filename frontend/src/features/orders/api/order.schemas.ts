@@ -19,6 +19,10 @@ export const orderLineResponseSchema = z.object({
 
 export const orderResponseSchema = z.object({
   cartId: z.number().int().positive(),
+  currency: z
+    .string()
+    .regex(/^[A-Z]{3}$/)
+    .optional(),
   id: z.number().int().positive(),
   orderDate: z.string().datetime({ local: true }),
   orderLines: z.array(orderLineResponseSchema).min(1),

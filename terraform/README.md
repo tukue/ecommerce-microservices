@@ -37,14 +37,56 @@ terraform/
 ### 1. Configure Variables
 
 ```bash
-cd environments/dev
-cp terraform.tfvars.example terraform.tfvars
+cd terraform
 ```
 
-Edit `terraform.tfvars` with your specific values:
-- Set a secure `db_password`
+Before planning, create the environment's runtime-configuration parameter described
+below and configure the required AWS variables in `terraform.tfvars` or through
+environment variables. Then run the root Terraform configuration:
+
+```bash
+terraform init
+terraform workspace select dev || terraform workspace new dev
+terraform plan
+```
+
+Set `environment` to `staging` or `prod` when planning those environments. Configure
+the required deployment inputs:
+
 - Adjust `aws_region` if needed
 - Modify resource sizes based on requirements
+- Create one Systems Manager Parameter Store `String` parameter per environment:
+  `/<project>/<environment>/runtime-configuration`, such as
+  `/grocery-ecommerce-platform/dev/runtime-configuration`.
+
+The broker is not provisioned by this Terraform stack. Order and summary tasks require
+reachable bootstrap endpoints. Use `kafka_security_protocol = "SSL"` for TLS-only
+brokers, or `"SASL_SSL"` with `kafka_sasl_mechanism` and
+`kafka_sasl_jaas_secret_arn` referencing a Secrets Manager secret whose JSON contains
+`jaas_config`. Kafka security variables are injected only into order and summary tasks.
+Keep Kafka credentials in Secrets Manager, not in Parameter Store or Terraform files.
+
+Each Parameter Store value is JSON and contains only non-secret runtime settings:
+
+```json
+{
+  "cors_allowed_origins": "https://shop.example.com",
+  "kafka_bootstrap_servers": "broker.prod.internal:9094",
+  "kafka_security_protocol": "SSL"
+}
+```
+
+For SASL_SSL, also provide `kafka_sasl_mechanism` and
+`kafka_sasl_jaas_secret_arn`. The Terraform CodeBuild role reads the matching
+environment parameter during plan/apply.
+
+RDS manages its master password in Secrets Manager. ECS tasks read the generated
+credential secret rather than relying on a separately maintained password.
+
+All ECS services use the Spring `prod` profile because they run against RDS and require
+the configured OIDC issuer, regardless of the Terraform environment name. Cart and
+product service URLs are wired through a shared Cloud Map private DNS namespace, and
+private-subnet traffic is allowed between the services for those calls.
 
 ### 2. Initialize Terraform
 

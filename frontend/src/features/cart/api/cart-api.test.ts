@@ -7,7 +7,7 @@ import type {
 import { createCartApi } from "./cart-api";
 
 const context = { authorization: "Bearer test-token" };
-const cart = { id: 42, items: [], status: "OPEN" };
+const cart = { currency: null, id: 42, items: [], status: "OPEN" };
 
 describe("CartApi", () => {
   it("retrieves the current cart", async () => {

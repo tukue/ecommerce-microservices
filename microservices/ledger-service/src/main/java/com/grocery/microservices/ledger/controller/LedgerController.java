@@ -3,8 +3,11 @@ package com.grocery.microservices.ledger.controller;
 import com.grocery.microservices.ledger.config.AuthenticatedCustomer;
 import com.grocery.microservices.ledger.dto.CustomerLedgerDTO;
 import com.grocery.microservices.ledger.dto.LedgerDTO;
+import com.grocery.microservices.ledger.dto.ReceiptDTO;
+import com.grocery.microservices.ledger.exception.LedgerNotFoundException;
 import com.grocery.microservices.ledger.model.Ledger;
 import com.grocery.microservices.ledger.port.LedgerQuery;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -42,15 +45,21 @@ public class LedgerController {
 
     @GetMapping("/orders/{orderId}/receipt")
     @PreAuthorize("hasAuthority('SCOPE_ledger:read')")
-    public String getReceipt(@PathVariable Long orderId,
-                             @AuthenticationPrincipal AuthenticatedCustomer customer) {
-        return ledgerQuery.getFormattedReceipt(customer.customerId(), orderId);
+    public ResponseEntity<ReceiptDTO> getReceipt(@PathVariable Long orderId,
+                                                  @AuthenticationPrincipal AuthenticatedCustomer customer) {
+        try {
+            return ResponseEntity.ok(ReceiptDTO.ready(
+                    ledgerQuery.getFormattedReceipt(customer.customerId(), orderId)));
+        } catch (LedgerNotFoundException ex) {
+            return ResponseEntity.accepted().body(ReceiptDTO.pending());
+        }
     }
 
     private LedgerDTO convertToDto(Ledger ledger) {
         LedgerDTO dto = new LedgerDTO();
         dto.setId(ledger.getId());
         dto.setOrderId(ledger.getOrderId());
+        dto.setCurrency(ledger.getCurrency());
         if (ledger.getTotalAmount() != null) {
             dto.setTotal(ledger.getTotalAmount().doubleValue());
         }

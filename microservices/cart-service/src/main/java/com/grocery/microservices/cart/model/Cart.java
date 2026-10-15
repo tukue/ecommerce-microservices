@@ -20,6 +20,9 @@ public class Cart {
     @Column(nullable = false, length = 20)
     private CartStatus status = CartStatus.OPEN;
 
+    @Column(length = 3)
+    private String currency;
+
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
     private List<CartItem> items = new ArrayList<>();
 
@@ -31,6 +34,8 @@ public class Cart {
     public void setUserId(String userId) { this.userId = userId; }
     public CartStatus getStatus() { return status; }
     public void setStatus(CartStatus status) { this.status = status; }
+    public String getCurrency() { return currency; }
+    public void setCurrency(String currency) { this.currency = currency; }
     public List<CartItem> getItems() { return items; }
     public void setItems(List<CartItem> items) { this.items = items; }
 } 
