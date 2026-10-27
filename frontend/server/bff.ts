@@ -77,9 +77,7 @@ function identityFromClaims(idClaims: JWTPayload, accessClaims: JWTPayload) {
   const idExpiresAt =
     typeof idClaims.exp === "number" ? idClaims.exp * 1000 : Number.NaN;
   const accessExpiresAt =
-    typeof accessClaims.exp === "number"
-      ? accessClaims.exp * 1000
-      : Number.NaN;
+    typeof accessClaims.exp === "number" ? accessClaims.exp * 1000 : Number.NaN;
   const expiresAt = Math.min(idExpiresAt, accessExpiresAt);
   if (
     !sub ||
