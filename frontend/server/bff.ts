@@ -66,18 +66,27 @@ async function verifiedIdentity(token: string, verifyToken: TokenVerifier) {
 /** Derive a session identity from verified OIDC claims, provider-neutrally. */
 function identityFromClaims(idClaims: JWTPayload, accessClaims: JWTPayload) {
   const sub = typeof idClaims.sub === "string" ? idClaims.sub : "";
+  const accessSub =
+    typeof accessClaims.sub === "string" ? accessClaims.sub : "";
   const email =
     (typeof idClaims.email === "string" && idClaims.email) ||
     (typeof idClaims.preferred_username === "string" &&
       idClaims.preferred_username) ||
     sub;
   const now = Date.now();
-  const idExp =
-    typeof idClaims.exp === "number" ? idClaims.exp * 1000 : now + 3_600_000;
-  const accessExp =
-    typeof accessClaims.exp === "number" ? accessClaims.exp * 1000 : idExp;
-  const expiresAt = Math.min(idExp, accessExp);
-  if (!sub || expiresAt <= now) throw new OidcError("invalid_identity");
+  const idExpiresAt =
+    typeof idClaims.exp === "number" ? idClaims.exp * 1000 : Number.NaN;
+  const accessExpiresAt =
+    typeof accessClaims.exp === "number" ? accessClaims.exp * 1000 : Number.NaN;
+  const expiresAt = Math.min(idExpiresAt, accessExpiresAt);
+  if (
+    !sub ||
+    sub !== accessSub ||
+    !Number.isFinite(idExpiresAt) ||
+    !Number.isFinite(accessExpiresAt) ||
+    expiresAt <= now
+  )
+    throw new OidcError("invalid_identity");
   return { email, expiresAt, userId: sub };
 }
 

@@ -163,6 +163,77 @@ describe("OIDC auth contract", () => {
       .expect(400);
   });
 
+  it.each([
+    ["a different access-token subject", "u2"],
+    ["a missing access-token subject", undefined],
+  ])("rejects a callback with %s", async (_description, accessSubject) => {
+    const { client } = fakeOidcClient({
+      async verifyAccessToken() {
+        return {
+          sub: accessSubject,
+          exp: Math.floor(Date.now() / 1000) + 3600,
+        };
+      },
+    });
+    const app = createBff(config, new MemorySessionStore(), verifyToken, {
+      oidc: client,
+      authRequests: new MemoryAuthRequestStore(),
+    });
+    const login = await request(app).get("/api/auth/login").expect(302);
+    const state = new URL(login.headers.location).searchParams.get("state");
+    const callback = await request(app)
+      .get(`/api/auth/callback?code=abc&state=${state}`)
+      .expect(400);
+    expect(callback.headers["set-cookie"]).toBeUndefined();
+  });
+
+  it.each([
+    ["a missing ID-token expiry", "missing-id-exp"],
+    ["a missing access-token expiry", "missing-access-exp"],
+    ["an expired ID token", "expired-id"],
+    ["an expired access token", "expired-access"],
+  ])("rejects a callback with %s", async (_description, scenario) => {
+    const future = Math.floor(Date.now() / 1000) + 3600;
+    const past = Math.floor(Date.now() / 1000) - 60;
+    const idExp =
+      scenario === "missing-id-exp"
+        ? undefined
+        : scenario === "expired-id"
+          ? past
+          : future;
+    const accessExp =
+      scenario === "missing-access-exp"
+        ? undefined
+        : scenario === "expired-access"
+          ? past
+          : future;
+    const { client } = fakeOidcClient({
+      async verifyIdToken() {
+        return {
+          sub: "u1",
+          email: "u@example.test",
+          ...(idExp === undefined ? {} : { exp: idExp }),
+        };
+      },
+      async verifyAccessToken() {
+        return {
+          sub: "u1",
+          ...(accessExp === undefined ? {} : { exp: accessExp }),
+        };
+      },
+    });
+    const app = createBff(config, new MemorySessionStore(), verifyToken, {
+      oidc: client,
+      authRequests: new MemoryAuthRequestStore(),
+    });
+    const login = await request(app).get("/api/auth/login").expect(302);
+    const state = new URL(login.headers.location).searchParams.get("state");
+    const callback = await request(app)
+      .get(`/api/auth/callback?code=abc&state=${state}`)
+      .expect(400);
+    expect(callback.headers["set-cookie"]).toBeUndefined();
+  });
+
   it("fails safely when the provider is unavailable", async () => {
     const { client } = fakeOidcClient({
       async authorizationUrl() {
