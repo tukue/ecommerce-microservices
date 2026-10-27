@@ -189,7 +189,9 @@ a clear error and without printing secret values.
 - E01's identity owner will select and configure a real OIDC provider; this feature does
   not choose a vendor and works with any OIDC-conformant provider.
 - The external provider issues RS256-signed tokens with a stable `sub` claim, an email or
-  preferred-username claim, and the shared `grocery-api` audience for access tokens.
+  preferred-username claim, and the shared `grocery-api` audience for access tokens. The
+  ID token and access token represent the same subject, and both tokens contain a valid,
+  unexpired `exp` claim; sign-in is rejected if these assumptions are not met.
 - The server-side session store (Redis) is available in production and already used by the
   session boundary.
 - The existing development identity mechanism remains available only in non-production

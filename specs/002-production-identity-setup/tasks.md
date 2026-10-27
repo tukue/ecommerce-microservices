@@ -55,4 +55,4 @@
 
 ## Phase 8: Convergence
 
-- [X] T022 Verify that the OIDC ID token and access token belong to the same subject before creating a session, and cover missing or mismatched subjects in `frontend/server/__tests__/oidc-auth-contract.test.ts` per FR-004 (partial)
+- [X] T022 Require matching subjects and valid, unexpired `exp` claims on both OIDC tokens before creating a session; cover missing/mismatched subjects and expirations in `frontend/server/__tests__/oidc-auth-contract.test.ts` per FR-004 (partial)

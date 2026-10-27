@@ -74,12 +74,20 @@ function identityFromClaims(idClaims: JWTPayload, accessClaims: JWTPayload) {
       idClaims.preferred_username) ||
     sub;
   const now = Date.now();
-  const idExp =
-    typeof idClaims.exp === "number" ? idClaims.exp * 1000 : now + 3_600_000;
-  const accessExp =
-    typeof accessClaims.exp === "number" ? accessClaims.exp * 1000 : idExp;
-  const expiresAt = Math.min(idExp, accessExp);
-  if (!sub || sub !== accessSub || expiresAt <= now)
+  const idExpiresAt =
+    typeof idClaims.exp === "number" ? idClaims.exp * 1000 : Number.NaN;
+  const accessExpiresAt =
+    typeof accessClaims.exp === "number"
+      ? accessClaims.exp * 1000
+      : Number.NaN;
+  const expiresAt = Math.min(idExpiresAt, accessExpiresAt);
+  if (
+    !sub ||
+    sub !== accessSub ||
+    !Number.isFinite(idExpiresAt) ||
+    !Number.isFinite(accessExpiresAt) ||
+    expiresAt <= now
+  )
     throw new OidcError("invalid_identity");
   return { email, expiresAt, userId: sub };
 }
