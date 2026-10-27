@@ -163,6 +163,30 @@ describe("OIDC auth contract", () => {
       .expect(400);
   });
 
+  it.each([
+    ["a different access-token subject", "u2"],
+    ["a missing access-token subject", undefined],
+  ])("rejects a callback with %s", async (_description, accessSubject) => {
+    const { client } = fakeOidcClient({
+      async verifyAccessToken() {
+        return {
+          sub: accessSubject,
+          exp: Math.floor(Date.now() / 1000) + 3600,
+        };
+      },
+    });
+    const app = createBff(config, new MemorySessionStore(), verifyToken, {
+      oidc: client,
+      authRequests: new MemoryAuthRequestStore(),
+    });
+    const login = await request(app).get("/api/auth/login").expect(302);
+    const state = new URL(login.headers.location).searchParams.get("state");
+    const callback = await request(app)
+      .get(`/api/auth/callback?code=abc&state=${state}`)
+      .expect(400);
+    expect(callback.headers["set-cookie"]).toBeUndefined();
+  });
+
   it("fails safely when the provider is unavailable", async () => {
     const { client } = fakeOidcClient({
       async authorizationUrl() {

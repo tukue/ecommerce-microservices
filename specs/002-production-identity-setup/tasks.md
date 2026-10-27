@@ -52,3 +52,7 @@
   - `gateway-service`: new `ProductionIdentityGuardTest` **passes** (3/3); `ProductionIdentityGuard` is `@Profile("prod")` so it is inert under tests.
   - Pre-existing (not E01): `GatewayRoutesTest` fails to load its context with `NoClassDefFoundError: org/springframework/boot/autoconfigure/web/ServerProperties`, thrown from `spring-cloud-commons` 4.3.2 `SimpleDiscoveryClientAutoConfiguration`. Boot 4.1.1 relocated/removed that class, so Spring Cloud 2025.0.2 is incompatible with the pinned Boot version. Fails on `main` too; flagged separately.
 - [X] T021 Document the production identity environment contract in `docs/configuration-guide.md`
+
+## Phase 8: Convergence
+
+- [X] T022 Verify that the OIDC ID token and access token belong to the same subject before creating a session, and cover missing or mismatched subjects in `frontend/server/__tests__/oidc-auth-contract.test.ts` per FR-004 (partial)
