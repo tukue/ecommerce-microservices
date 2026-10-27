@@ -716,7 +716,6 @@ resource "aws_iam_policy" "codebuild_secrets_manager_policy" {
         Effect = "Allow",
         Action = [
           "secretsmanager:CreateSecret",
-          "secretsmanager:DeleteSecret",
           "secretsmanager:DescribeSecret",
           "secretsmanager:GetSecretValue",
           "secretsmanager:PutSecretValue",
