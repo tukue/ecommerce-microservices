@@ -45,7 +45,10 @@ components do not call configured microservice URLs directly.
 | `/api/customer/ledger` and order receipt | Ledger-service, with BFF receipt adaptation |
 
 The BFF stores verified upstream JWTs in Redis and returns only public identity
-to the browser. Expired sessions trigger sign-in recovery. Feature API adapters
+to the browser. Expired sessions trigger sign-in recovery. Returning to a tab revalidates the
+shared cookie session and hides the cached identity while the check runs. This
+detects sign-out or account changes in another tab. Failed checks clear the local
+identity; a later focus can retry. Provider tokens are not refreshed. Feature API adapters
 validate response shapes before mapping DTOs into domain data.
 
 ## Cart state and concurrent requests

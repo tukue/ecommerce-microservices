@@ -5,6 +5,11 @@ current product and cart foundation.
 
 ## Customer authentication
 
+- [x] Revalidate the shared cookie session when a tab regains focus or becomes
+  visible. Hide the previous identity during verification, detect sign-out and
+  account changes, and ignore responses superseded by a newer sign-in.
+  This increment does not refresh expired provider tokens.
+
 - [ ] Implement the production sign-in/session flow that writes a short-lived,
   httpOnly `access_token` cookie. The add-to-cart Server Action already reads
   this cookie on the server and returns an accessible sign-in message when it
